@@ -43,7 +43,8 @@ Work proceeds one day/session at a time.
          16 -> 22 tests, all passing. See DEBUGGING.md for the full writeup.
       -> Introduced/fixed after Day 6 results were already recorded -- no saved
          checkpoints/reports were computed with the buggy code.
-- [ ] Day 8 — git init + push finished project to GitHub in one commit history
+- [x] Day 8 — git init + push finished project to GitHub in one commit history
+      -> https://github.com/Charith-Reddy-Pareddy/Robustness-and-Quantized-Inference-for-Autonomous-Traffic-Sign-Analytics
 
 Optional / cut first if time-constrained: Mapillary generalization check, OpenCV webcam demo.
 
