@@ -1,0 +1,112 @@
+{
+  "baseline_cnn": {
+    "clean_accuracy": 0.9121756487025948,
+    "fgsm": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.5728542914171657,
+        "attack_success_rate": 0.37199124726477023,
+        "clean_correct_count": 1828
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.34930139720558884,
+        "attack_success_rate": 0.6170678336980306,
+        "clean_correct_count": 1828
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.1536926147704591,
+        "attack_success_rate": 0.8315098468271335,
+        "clean_correct_count": 1828
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.058383233532934134,
+        "attack_success_rate": 0.9359956236323851,
+        "clean_correct_count": 1828
+      }
+    ],
+    "pgd": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.47105788423153694,
+        "attack_success_rate": 0.48358862144420134,
+        "clean_correct_count": 1828
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.18662674650698602,
+        "attack_success_rate": 0.7954048140043763,
+        "clean_correct_count": 1828
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.027445109780439122,
+        "attack_success_rate": 0.9699124726477024,
+        "clean_correct_count": 1828
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.0,
+        "attack_success_rate": 1.0,
+        "clean_correct_count": 1828
+      }
+    ]
+  },
+  "mobilenet_transfer": {
+    "clean_accuracy": 0.9730538922155688,
+    "fgsm": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.656187624750499,
+        "attack_success_rate": 0.32564102564102565,
+        "clean_correct_count": 1950
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.5518962075848304,
+        "attack_success_rate": 0.4328205128205128,
+        "clean_correct_count": 1950
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.4476047904191617,
+        "attack_success_rate": 0.54,
+        "clean_correct_count": 1950
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.344311377245509,
+        "attack_success_rate": 0.6471794871794871,
+        "clean_correct_count": 1950
+      }
+    ],
+    "pgd": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.14820359281437126,
+        "attack_success_rate": 0.8476923076923077,
+        "clean_correct_count": 1950
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.06187624750499002,
+        "attack_success_rate": 0.9364102564102564,
+        "clean_correct_count": 1950
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.016467065868263474,
+        "attack_success_rate": 0.9830769230769231,
+        "clean_correct_count": 1950
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.0029940119760479044,
+        "attack_success_rate": 0.9969230769230769,
+        "clean_correct_count": 1950
+      }
+    ]
+  }
+}
