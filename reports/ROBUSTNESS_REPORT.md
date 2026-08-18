@@ -147,6 +147,59 @@ quantization effect from unrelated hardware/backend differences.
 | Baseline CNN | 2.34ms | 1.05ms | 2.22x | 570.0 KB | 162.9 KB | 3.50x |
 | MobileNetV2 | 3.42ms | 1.65ms | 2.08x | 8878.8 KB | 2609.4 KB | 3.40x |
 
+## Phase 3: generalization check (Mapillary)
+
+GTSRB is exclusively German, standardized signage, captured from sequential dashcam video
+— a model could score well on it while having learned something closer to "recognize
+this specific country's sign fonts and image conditions" than "recognize traffic signs."
+This phase tests whether the trained models generalize to a different, more diverse
+real-world image distribution: the [Mapillary+DFG dataset](https://www.kaggle.com/datasets/nomihsa965/traffic-signs-dataset-mapillary-and-dfg)
+(pre-cropped signs from Africa-region street imagery, a different labeling taxonomy than
+GTSRB's numeric classes).
+
+**Methodology:** GTSRB's 43 classes were mapped to Mapillary's 76 classes by semantic
+meaning (see `src/data/mapillary_mapping.py`); only unambiguous 1:1 matches were kept —
+23 of 43 GTSRB classes. Notably excluded: all 9 numeric speed-limit classes, since
+Mapillary lumps every speed value into one generic "maximum-speed-limit" class with no
+way to recover which specific limit (20/30/.../120 km/h) a given crop shows. 150 images
+per mapped class were sampled (3,450 total). For a fair comparison, GTSRB test accuracy
+was recomputed restricted to the same 23 classes (rather than reusing the full-43-class
+headline numbers), since the two accuracies would otherwise be measuring different tasks.
+
+### Result: both models generalize far worse than their GTSRB numbers suggest
+
+See `mapillary_generalization.png`.
+
+| Architecture | GTSRB test (23 classes) | Mapillary (FP32) | Drop |
+|---|---|---|---|
+| Baseline CNN | 92.30% | 47.48% | **-44.8pp** |
+| MobileNetV2 (transfer) | 97.38% | 68.93% | **-28.4pp** |
+
+Both models lose enormous accuracy on the shifted distribution — confirming the concern
+the project spec raised about GTSRB-specific results. MobileNetV2's ImageNet-pretrained
+features generalize meaningfully better than the from-scratch CNN's (a 28pp drop vs. a
+45pp drop), consistent with Phase 1's corruption-robustness finding that pretraining
+helps against distribution shift generally, just not against pixel-level noise or (as
+seen here) country-of-origin shift specifically.
+
+Per-class F1 on Mapillary is highly uneven (MobileNetV2: 0.98 for "yield" down to 0.12
+for "pedestrians"). The worst-performing classes are plausibly a mapping-methodology
+artifact rather than a pure generalization failure — e.g. GTSRB's "pedestrians" warning
+triangle and Mapillary's "pedestrians-crossing" sign may use visually different
+pictograms across sign-design standards, which a semantic name match can't detect. This
+is a genuine limitation of the class-mapping approach, not necessarily of the models.
+
+### FP32 vs. INT8 on Mapillary: the earlier finding holds even under distribution shift
+
+| Architecture | FP32 | INT8 | Delta |
+|---|---|---|---|
+| Baseline CNN | 47.48% | 46.90% | -0.58pp |
+| MobileNetV2 | 68.93% | 68.55% | -0.38pp |
+
+The FP32-INT8 gap stays small even on this out-of-distribution dataset — reinforcing
+Phase 2's finding that quantization's cost is minor and consistent, not something that
+compounds specifically under distribution shift.
+
 ## Conclusion
 
 For this task, INT8 quantization delivers its real-time deployment benefits (~2x latency,
@@ -155,12 +208,17 @@ at no meaningful cost to corruption robustness for the from-scratch baseline CNN
 genuine robustness cost found is corruption robustness for the transfer-learned
 MobileNetV2 specifically, and specifically at high corruption severity (a regime an
 autonomous system would ideally never operate in for other reasons — e.g. severity-4
-brightness/contrast is a near-unrecognizable image even to a human).
+brightness/contrast is a near-unrecognizable image even to a human). That cost held up
+even on the Mapillary generalization set, where the FP32-INT8 gap remained just as small
+as on GTSRB.
 
 The practical implication: architecture choice matters more than the FP32-vs-INT8
-decision here. If deploying INT8, the from-scratch CNN's robustness profile survives
-quantization essentially unchanged, while MobileNetV2 trades some worst-case corruption
-robustness for its much higher baseline accuracy and robustness everywhere else.
+decision here, and matters even more for generalization than for quantization safety.
+MobileNetV2 trades a bit of worst-case corruption robustness for much better accuracy,
+adversarial robustness under FGSM, and — by a wide margin — generalization to signs it's
+never seen the likes of. Given that the whole point of an autonomous traffic-sign system
+is operating on signs the training set didn't anticipate, that last property arguably
+matters more than any of the individually-tested robustness axes.
 
 ## Limitations
 
@@ -174,8 +232,12 @@ robustness for its much higher baseline accuracy and robustness everywhere else.
 - Static INT8 quantization was calibrated on only 200 training images; a larger
   calibration set might shift the corruption-robustness gap found for MobileNetV2 in
   either direction.
-- Mapillary generalization check and the OpenCV webcam demo (both marked optional/lowest
-  priority in the original spec) were not attempted.
+- The Mapillary generalization check only covers the 23 GTSRB classes with an
+  unambiguous semantic match, excludes all numeric speed-limit classes entirely, and its
+  worst-performing per-class results are plausibly confounded by cross-standard
+  pictogram differences rather than pure distribution shift (see Phase 3). The OpenCV
+  webcam demo (marked lowest-priority/no-research-value in the original spec) was not
+  attempted.
 
 ## Figures
 
@@ -186,3 +248,4 @@ All in `reports/`:
 - `corruption_curves.png` — FP32 accuracy vs. corruption severity
 - `adversarial_curves.png` — FP32 accuracy vs. attack strength (FGSM, PGD)
 - `quantization_comparison.png` — FP32 vs. INT8, corruption + adversarial, side by side
+- `mapillary_generalization.png` — GTSRB vs. Mapillary accuracy, per-class F1 breakdown

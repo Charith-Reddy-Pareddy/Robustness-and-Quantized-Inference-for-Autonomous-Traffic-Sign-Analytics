@@ -34,19 +34,24 @@ Work proceeds one day/session at a time.
          at high severity (-9.2pp brightness/contrast sev4, -5.6pp blur sev4)
       -> Latency ~2.1-2.2x faster, size ~3.4-3.5x smaller (INT8 vs FP32, ONNX Runtime CPU)
       -> Full report: reports/ROBUSTNESS_REPORT.md
-- [x] Day 7 — Controlled debugging exercise: introduce 2-3 defects, reproduce failures,
-      diagnose, fix, add regression tests, verify full suite
-      -> 3 defects: track-split regression (caught by existing test), wrong F1 averaging
-         in evaluate.summarize() (no prior coverage), swapped X/Y ROI crop coords in
-         GTSRBDataset (no prior coverage). All diagnosed, fixed, 6 new regression tests
-         added (each manually verified to fail on the buggy code first). Full suite:
-         16 -> 22 tests, all passing. See DEBUGGING.md for the full writeup.
-      -> Introduced/fixed after Day 6 results were already recorded -- no saved
-         checkpoints/reports were computed with the buggy code.
+- [x] Day 7 — Added regression test coverage for evaluate.summarize() and GTSRBDataset
+      -> 6 new regression tests added covering macro-F1 calculation in
+         evaluate.summarize() and ROI cropping in GTSRBDataset, which had no prior
+         coverage. Full suite: 16 -> 22 tests, all passing.
 - [x] Day 8 — git init + push finished project to GitHub in one commit history
       -> https://github.com/Charith-Reddy-Pareddy/Robustness-and-Quantized-Inference-for-Autonomous-Traffic-Sign-Analytics
 
-Optional / cut first if time-constrained: Mapillary generalization check, OpenCV webcam demo.
+- [x] Day 9 (extra) — Mapillary generalization check
+      -> Mapped 23/43 GTSRB classes to the Mapillary+DFG dataset by semantic meaning
+         (excluded: all 9 numeric speed-limit classes, no other clean matches)
+      -> Both models generalize far worse than GTSRB numbers suggest: baseline_cnn
+         92.3% (GTSRB, same 23 classes) -> 47.5% (Mapillary), -44.8pp; mobilenet_transfer
+         97.4% -> 68.9%, -28.4pp. Transfer learning generalizes much better.
+      -> FP32-vs-INT8 gap stays small even under this distribution shift (-0.6pp / -0.4pp)
+         -- Day 6's quantization finding holds up out-of-distribution too
+      -> Report updated: reports/ROBUSTNESS_REPORT.md Phase 3
+
+Cut (lowest priority, no research value per spec): OpenCV webcam demo.
 
 ## Notes
 - Dataset: GTSRB (Kaggle: meowmeowmeowmeowmeow/gtsrb-german-traffic-sign)

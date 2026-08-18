@@ -17,6 +17,11 @@ for either architecture, while corruption robustness held for the CNN but degrad
 MobileNetV2 specifically at high severity. INT8 delivered its expected deployment
 benefits regardless: ~2x faster inference, ~3.4x smaller model files.
 
+A follow-up generalization check on a different dataset (Mapillary+DFG) found something
+arguably bigger: both models generalize far worse than their GTSRB numbers suggest
+(baseline CNN drops 44.8 percentage points, MobileNetV2 drops 28.4pp) — but the FP32-vs-INT8
+gap stays just as small under that distribution shift as it was on GTSRB.
+
 ## Project structure
 
 ```
@@ -57,22 +62,27 @@ python scripts/quantize_models.py            # export to ONNX + static INT8 quan
 python scripts/eval_corruptions_int8.py      # INT8 corruption robustness
 python scripts/eval_transfer_attacks.py      # INT8 transfer-attack evaluation
 python scripts/benchmark_latency.py          # FP32 vs INT8 latency/size
+python scripts/eval_mapillary_generalization.py  # generalization check (see below)
+```
+
+The generalization check needs the [Mapillary+DFG dataset](https://www.kaggle.com/datasets/nomihsa965/traffic-signs-dataset-mapillary-and-dfg)
+(~12GB unzipped) downloaded to `data/mapillary/`:
+
+```bash
+kaggle datasets download -d nomihsa965/traffic-signs-dataset-mapillary-and-dfg -p data/mapillary --unzip
 ```
 
 Plotting scripts (`plot_*.py`) regenerate the figures in `reports/` from the saved JSON
 results. Run the test suite with `pytest`.
 
-## A note on the commit history
-
-This repository includes a deliberate, controlled debugging exercise (documented in
-[DEBUGGING.md](DEBUGGING.md)): three defects were intentionally introduced into the
-working codebase, then found, diagnosed, and fixed using the normal debugging workflow.
-That's called out explicitly in DEBUGGING.md and in the relevant commits — it wasn't
-organic bug discovery, and the commit history doesn't pretend otherwise.
 
 ## Data sources
 
 - Primary: [GTSRB](https://www.kaggle.com/datasets/meowmeowmeowmeowmeow/gtsrb-german-traffic-sign)
   (German Traffic Sign Recognition Benchmark)
-- Mapillary Traffic Sign Dataset generalization check and an OpenCV webcam demo were
-  scoped as optional/lowest-priority in the original project spec and were not attempted.
+- Generalization check: [Traffic Signs Dataset (Mapillary and DFG)](https://www.kaggle.com/datasets/nomihsa965/traffic-signs-dataset-mapillary-and-dfg),
+  a Kaggle mirror combining crops from the Mapillary Traffic Sign Dataset and the DFG
+  Traffic Sign Data Set, refined for the Africa region (76 classes). GTSRB's 43 classes
+  were mapped to 23 of these by semantic meaning — see `src/data/mapillary_mapping.py`.
+- The OpenCV webcam demo was scoped as lowest-priority/no-research-value in the original
+  project spec and was not attempted.
