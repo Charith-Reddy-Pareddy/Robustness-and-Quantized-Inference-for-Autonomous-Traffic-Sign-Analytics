@@ -1,0 +1,78 @@
+# Robustness and Quantized Inference for Autonomous Traffic Sign Analytics
+
+Does INT8 quantization for real-time deployment compromise a traffic-sign classifier's
+robustness to visual corruptions and adversarial attacks — even when clean accuracy is
+preserved?
+
+Full write-up, methodology, and results: [reports/ROBUSTNESS_REPORT.md](reports/ROBUSTNESS_REPORT.md)
+
+## TL;DR
+
+Two architectures (a from-scratch CNN and a fine-tuned MobileNetV2) were trained on
+GTSRB, benchmarked against corruptions (blur/noise/rotation/brightness) and adversarial
+attacks (FGSM/PGD), then quantized to INT8 via ONNX Runtime and re-tested. The hypothesis
+that quantization would hurt both corruption and adversarial robustness was only
+**partially confirmed**: adversarial vulnerability was *not* increased by quantization
+for either architecture, while corruption robustness held for the CNN but degraded for
+MobileNetV2 specifically at high severity. INT8 delivered its expected deployment
+benefits regardless: ~2x faster inference, ~3.4x smaller model files.
+
+## Project structure
+
+```
+src/
+  data/          dataset loading, track-aware train/val split, transforms
+  models/        architectures, training loop, evaluation, ONNX/normalization wrapper
+  robustness/    image corruptions, FGSM/PGD adversarial attacks
+  quantization/  ONNX export + static INT8 quantization
+  viz/           Grad-CAM
+scripts/         one script per pipeline stage (training, evaluation, plotting)
+tests/           pytest suite
+reports/         all generated figures, metrics, and the full written report
+```
+
+## Reproducing
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Requires a Kaggle API token (`~/.kaggle/kaggle.json`) to download
+[GTSRB](https://www.kaggle.com/datasets/meowmeowmeowmeowmeow/gtsrb-german-traffic-sign):
+
+```bash
+kaggle datasets download -d meowmeowmeowmeowmeow/gtsrb-german-traffic-sign -p data/raw --unzip
+```
+
+Then, in order:
+
+```bash
+python scripts/eda.py                       # exploratory data analysis
+python scripts/run_experiments.py            # train both architectures, 3 seeds each
+python scripts/eval_corruptions.py           # FP32 corruption robustness
+python scripts/gradcam_demo.py               # Grad-CAM visualizations
+python scripts/eval_adversarial.py           # FP32 adversarial robustness (FGSM/PGD)
+python scripts/quantize_models.py            # export to ONNX + static INT8 quantization
+python scripts/eval_corruptions_int8.py      # INT8 corruption robustness
+python scripts/eval_transfer_attacks.py      # INT8 transfer-attack evaluation
+python scripts/benchmark_latency.py          # FP32 vs INT8 latency/size
+```
+
+Plotting scripts (`plot_*.py`) regenerate the figures in `reports/` from the saved JSON
+results. Run the test suite with `pytest`.
+
+## A note on the commit history
+
+This repository includes a deliberate, controlled debugging exercise (documented in
+[DEBUGGING.md](DEBUGGING.md)): three defects were intentionally introduced into the
+working codebase, then found, diagnosed, and fixed using the normal debugging workflow.
+That's called out explicitly in DEBUGGING.md and in the relevant commits — it wasn't
+organic bug discovery, and the commit history doesn't pretend otherwise.
+
+## Data sources
+
+- Primary: [GTSRB](https://www.kaggle.com/datasets/meowmeowmeowmeowmeow/gtsrb-german-traffic-sign)
+  (German Traffic Sign Recognition Benchmark)
+- Mapillary Traffic Sign Dataset generalization check and an OpenCV webcam demo were
+  scoped as optional/lowest-priority in the original project spec and were not attempted.
