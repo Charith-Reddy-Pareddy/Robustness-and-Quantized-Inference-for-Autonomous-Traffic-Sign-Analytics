@@ -1,0 +1,15 @@
+torch>=2.2
+torchvision>=0.17
+numpy
+pandas
+scikit-learn
+matplotlib
+seaborn
+opencv-python
+onnx
+onnxruntime
+grad-cam
+kaggle
+pytest
+tqdm
+Pillow
