@@ -1,9 +1,6 @@
 """FGSM/PGD adversarial evaluation on the FP32 models (seed 42), across epsilon strengths.
 
-Uses a stratified subsample of the Test set (not the full 12,630 images): PGD requires a
-forward+backward pass per step, and at 10 steps x 4 epsilons x 2 models the full test set
-would take a long time for limited extra statistical value. 2000 stratified samples keeps
-per-class representation while making iterative attacks tractable.
+Runs on the full 12,630-image Test set.
 """
 
 import json
@@ -29,7 +26,6 @@ RAW_DIR = ROOT / "data" / "raw"
 CKPT_DIR = ROOT / "checkpoints"
 REPORTS_DIR = ROOT / "reports"
 
-N_SUBSAMPLE = 2000
 EPSILONS = [1 / 255, 2 / 255, 4 / 255, 8 / 255]
 PGD_STEPS = 10
 
@@ -47,13 +43,6 @@ ARCHS = {
         "ckpt": "mobilenet_transfer_seed42.pt",
     },
 }
-
-
-def stratified_subsample(df, n_total: int, seed: int):
-    frac_df = df.groupby("ClassId", group_keys=False).apply(
-        lambda g: g.sample(max(1, round(len(g) * n_total / len(df))), random_state=seed)
-    )
-    return frac_df.reset_index(drop=True)
 
 
 def run_attack_eval(model, loader, device, attack: str, epsilon: float):
@@ -90,8 +79,7 @@ def main():
     print(f"Using device: {device}")
 
     test_df = load_test_dataframe(RAW_DIR)
-    sub_df = stratified_subsample(test_df, N_SUBSAMPLE, seed=42)
-    print(f"Adversarial eval subsample: {len(sub_df)} images across {sub_df['ClassId'].nunique()} classes")
+    print(f"Adversarial eval set: {len(test_df)} images across {test_df['ClassId'].nunique()} classes")
 
     results = {}
     for arch_name, cfg in ARCHS.items():
@@ -100,15 +88,15 @@ def main():
         model = NormalizedModel(base_model, cfg["mean"], cfg["std"]).to(device).eval()
 
         pixel_transform = get_transform(mean=[0.0, 0.0, 0.0], std=[1.0, 1.0, 1.0])
-        ds = GTSRBDataset(sub_df, transform=pixel_transform)
+        ds = GTSRBDataset(test_df, transform=pixel_transform)
         loader = DataLoader(ds, batch_size=64, shuffle=False, num_workers=0)
 
         with torch.no_grad():
             clean_correct = sum(
                 (model(x.to(device)).argmax(1) == y.to(device)).sum().item() for x, y in loader
             )
-        clean_accuracy = clean_correct / len(sub_df)
-        print(f"{arch_name} clean subsample accuracy: {clean_accuracy:.4f}")
+        clean_accuracy = clean_correct / len(test_df)
+        print(f"{arch_name} clean accuracy: {clean_accuracy:.4f}")
 
         arch_results = {"clean_accuracy": clean_accuracy, "fgsm": [], "pgd": []}
         for epsilon in EPSILONS:

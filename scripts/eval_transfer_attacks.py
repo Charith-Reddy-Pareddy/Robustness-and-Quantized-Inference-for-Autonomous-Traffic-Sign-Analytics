@@ -34,7 +34,6 @@ CKPT_DIR = ROOT / "checkpoints"
 ONNX_DIR = ROOT / "onnx"
 REPORTS_DIR = ROOT / "reports"
 
-N_SUBSAMPLE = 2000
 EPSILONS = [1 / 255, 2 / 255, 4 / 255, 8 / 255]
 PGD_STEPS = 10
 
@@ -52,13 +51,6 @@ ARCHS = {
         "ckpt": "mobilenet_transfer_seed42.pt",
     },
 }
-
-
-def stratified_subsample(df, n_total: int, seed: int):
-    frac_df = df.groupby("ClassId", group_keys=False).apply(
-        lambda g: g.sample(max(1, round(len(g) * n_total / len(df))), random_state=seed)
-    )
-    return frac_df.reset_index(drop=True)
 
 
 def run_transfer_eval(fp32_model, onnx_sess, input_name, loader, device, attack: str, epsilon: float):
@@ -96,8 +88,7 @@ def main():
     print(f"Using device: {device}")
 
     test_df = load_test_dataframe(RAW_DIR)
-    sub_df = stratified_subsample(test_df, N_SUBSAMPLE, seed=42)
-    print(f"Transfer-attack eval subsample: {len(sub_df)} images")
+    print(f"Transfer-attack eval set: {len(test_df)} images")
 
     results = {}
     for arch_name, cfg in ARCHS.items():
@@ -109,15 +100,15 @@ def main():
         input_name = onnx_sess.get_inputs()[0].name
 
         pixel_transform = get_transform(mean=[0.0, 0.0, 0.0], std=[1.0, 1.0, 1.0])
-        ds = GTSRBDataset(sub_df, transform=pixel_transform)
+        ds = GTSRBDataset(test_df, transform=pixel_transform)
         loader = DataLoader(ds, batch_size=64, shuffle=False, num_workers=0)
 
         clean_correct = 0
         for images, labels in loader:
             logits = onnx_sess.run(None, {input_name: images.numpy().astype(np.float32)})[0]
             clean_correct += (logits.argmax(axis=1) == labels.numpy()).sum()
-        clean_accuracy = clean_correct / len(sub_df)
-        print(f"{arch_name} INT8 clean subsample accuracy: {clean_accuracy:.4f}")
+        clean_accuracy = clean_correct / len(test_df)
+        print(f"{arch_name} INT8 clean accuracy: {clean_accuracy:.4f}")
 
         arch_results = {"clean_accuracy": float(clean_accuracy), "fgsm": [], "pgd": []}
         for epsilon in EPSILONS:
