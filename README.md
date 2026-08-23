@@ -25,6 +25,21 @@ arguably bigger: both models generalize far worse than their GTSRB numbers sugge
 (baseline CNN drops 44.8 percentage points, MobileNetV2 drops 28.4pp) — but the FP32-vs-INT8
 gap stays just as small under that distribution shift as it was on GTSRB.
 
+## Experiment matrix
+
+| Dimension | Baseline CNN FP32 | Baseline CNN INT8 | MobileNetV2 FP32 | MobileNetV2 INT8 |
+|---|---|---|---|---|
+| Clean accuracy | ✓ | ✓ | ✓ | ✓ |
+| Corruption robustness | ✓ | ✓ | ✓ | ✓ |
+| FGSM | ✓ | ✓ (transfer) | ✓ | ✓ (transfer) |
+| PGD | ✓ | ✓ (transfer) | ✓ | ✓ (transfer) |
+| Mapillary OOD generalization | ✓ | ✓ | ✓ | ✓ |
+| Latency | ✓ | ✓ | ✓ | ✓ |
+| Model size | ✓ | ✓ | ✓ | ✓ |
+
+INT8 adversarial columns are transfer attacks (FP32-crafted examples evaluated against
+INT8), not independent white-box attacks — see [Threat models](reports/ROBUSTNESS_REPORT.md#threat-models).
+
 ## Project structure
 
 ```
@@ -38,6 +53,15 @@ scripts/         one script per pipeline stage (training, evaluation, plotting)
 tests/           pytest suite
 reports/         all generated figures, metrics, and the full written report
 ```
+
+## Environment
+
+Tested with Python 3.10 on macOS (Apple Silicon, MPS backend) and on CPU. Dependencies
+are exact-pinned in `requirements.txt` for reproducibility; `onnxruntime` version matters
+in particular since it affects the INT8 quantization algorithm and reported latency
+numbers. Latency benchmarks (`scripts/benchmark_latency.py`) are hardware-dependent —
+absolute numbers won't reproduce on different CPUs, only the relative FP32-vs-INT8 ratio
+should hold.
 
 ## Reproducing
 
