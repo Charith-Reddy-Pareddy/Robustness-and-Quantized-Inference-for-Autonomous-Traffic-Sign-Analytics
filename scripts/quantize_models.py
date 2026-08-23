@@ -22,7 +22,7 @@ RAW_DIR = ROOT / "data" / "raw"
 CKPT_DIR = ROOT / "checkpoints"
 ONNX_DIR = ROOT / "onnx"
 
-N_CALIBRATION = 200
+N_CALIBRATION = 1000
 
 ARCHS = {
     "baseline_cnn": {
