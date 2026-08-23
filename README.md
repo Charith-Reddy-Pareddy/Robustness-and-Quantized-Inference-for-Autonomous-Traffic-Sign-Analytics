@@ -1,4 +1,4 @@
-# Robustness and Quantized Inference for Autonomous Traffic Sign Analytics
+# Quantization vs. Robustness: Evaluating INT8 Traffic Sign Recognition Under Corruption, Adversarial Attacks, and Distribution Shift
 
 Does INT8 quantization for real-time deployment compromise a traffic-sign classifier's
 robustness to visual corruptions and adversarial attacks — even when clean accuracy is
@@ -12,10 +12,13 @@ Two architectures (a from-scratch CNN and a fine-tuned MobileNetV2) were trained
 GTSRB, benchmarked against corruptions (blur/noise/rotation/brightness) and adversarial
 attacks (FGSM/PGD), then quantized to INT8 via ONNX Runtime and re-tested. The hypothesis
 that quantization would hurt both corruption and adversarial robustness was only
-**partially confirmed**: adversarial vulnerability was *not* increased by quantization
-for either architecture, while corruption robustness held for the CNN but degraded for
-MobileNetV2 specifically at high severity. INT8 delivered its expected deployment
-benefits regardless: ~2x faster inference, ~3.4x smaller model files.
+**partially confirmed**: adversarial examples generated white-box against FP32 did *not*
+transfer more effectively to the INT8 model for either architecture — see the report's
+[Threat Models](reports/ROBUSTNESS_REPORT.md#threat-models) section for exactly what that
+does and doesn't establish about the INT8 model's own intrinsic robustness — while
+corruption robustness held for the CNN but degraded for MobileNetV2 specifically at high
+severity. INT8 delivered its expected deployment benefits regardless: ~2x faster
+inference, ~3.4x smaller model files.
 
 A follow-up generalization check on a different dataset (Mapillary+DFG) found something
 arguably bigger: both models generalize far worse than their GTSRB numbers suggest

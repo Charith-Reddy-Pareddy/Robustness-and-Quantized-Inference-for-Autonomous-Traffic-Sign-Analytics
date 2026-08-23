@@ -1,4 +1,4 @@
-# Robustness and Quantized Inference for Autonomous Traffic Sign Analytics
+# Quantization vs. Robustness: Evaluating INT8 Traffic Sign Recognition Under Corruption, Adversarial Attacks, and Distribution Shift
 
 ## Research question
 
@@ -12,12 +12,48 @@ preserved?
 > success rate) and reduces corruption robustness compared to the unquantized FP32 model,
 > even when standard-condition accuracy is preserved.
 
-**Result: partially refuted.** Adversarial vulnerability does *not* increase under
-quantization — for both architectures, transfer-attack success rates against the INT8
-model are equal to or slightly *lower* than white-box success rates against FP32.
-Corruption robustness is essentially unchanged for the baseline CNN, but *does* degrade
-for MobileNetV2, specifically at high corruption severity. The hypothesis holds only for
-one architecture on one axis (corruption, not adversarial).
+**Result: partially refuted.** For both architectures, adversarial examples generated
+white-box against FP32 do *not* become more effective when transferred to the INT8
+model — transfer success rates are equal to or slightly *lower* than the original FP32
+white-box success rates. That is not the same claim as "the INT8 model is intrinsically
+more adversarially robust" — see [Threat models](#threat-models) below for why, and what
+would be needed to test that stronger claim directly. Corruption robustness is
+essentially unchanged for the baseline CNN, but *does* degrade for MobileNetV2,
+specifically at high corruption severity. The hypothesis holds only for one architecture
+on one axis (corruption, not adversarial).
+
+## Threat models
+
+The adversarial evaluation in this report covers exactly two threat models, and the
+headline "quantization does not increase adversarial vulnerability" claim only holds for
+the second one:
+
+1. **FP32 white-box.** FGSM/PGD computed directly against the FP32 PyTorch model's own
+   gradients. This is the baseline everything else is compared to.
+2. **FP32 -> INT8 transfer.** The *same* FP32-generated adversarial examples, evaluated
+   unchanged against the INT8 model. This is a legitimate and realistic threat model on
+   its own (an attacker targeting a deployed quantized model typically doesn't have
+   white-box access to it either — see the Phase 2 methodology note), but it measures
+   *transferability*, not the INT8 model's intrinsic robustness to an attack tailored to
+   it.
+
+Not tested, and therefore not something this report's results support:
+
+- **INT8 white-box.** Requires a differentiable path through the quantized graph (e.g. a
+  quantization-aware surrogate that fake-quantizes in the forward pass but keeps
+  gradients flowing) that this project doesn't build. Without it, there's no way to know
+  whether the INT8 model has its *own* nearby adversarial examples that a transfer attack
+  simply doesn't find.
+- **Black-box / independent source model.** Attacking with adversarial examples crafted
+  against a *different* model entirely (not FP32-vs-INT8 of the same architecture) would
+  test transferability without the confound of the two models sharing nearly identical
+  decision boundaries.
+
+So the precise, defensible version of this report's adversarial finding is: **FP32-crafted
+adversarial examples transfer to the INT8 model at success rates no higher than white-box
+attacks against FP32 itself.** That's still a useful result — it rules out quantization
+making a deployed model an *easier* transfer target — but it is not evidence that INT8
+inference is intrinsically more adversarially robust than FP32.
 
 ## Dataset and methodology
 
@@ -89,7 +125,8 @@ quantized ONNX graph isn't one. Adversarial examples were generated white-box ag
 FP32 PyTorch model and evaluated unchanged against the INT8 model (a *transfer* attack).
 This isn't just a workaround — it reflects a realistic threat model, since an attacker
 targeting a deployed quantized model generally won't have white-box access to its
-internals either.
+internals either. See [Threat models](#threat-models) above for exactly what this does
+and doesn't establish about the INT8 model's intrinsic robustness.
 
 ### Clean accuracy: preserved
 
@@ -116,7 +153,7 @@ See `quantization_comparison.png` (left column).
 | Rotation | 72.93% | 72.13% | -0.80pp |
 | Brightness/contrast | 74.75% | 65.58% | **-9.17pp** |
 
-### Adversarial vulnerability: not increased — if anything, slightly reduced
+### FP32→INT8 transfer-attack success: not higher than FP32 white-box — if anything, slightly lower
 
 See `quantization_comparison.png` (right column).
 
@@ -135,7 +172,11 @@ Every single comparison shows INT8 transfer success at or below the FP32 white-b
 *transfer* attack — a perturbation optimized against one model's exact decision boundary
 is inherently somewhat less effective against a different (even slightly different)
 model — but it directly contradicts the hypothesis's claim that quantization would
-*increase* vulnerability. FGSM shows the same pattern.
+*increase* vulnerability. FGSM shows the same pattern. As noted in
+[Threat models](#threat-models), this speaks to transferability, not to how the INT8
+model would fare against an attack computed directly against its own decision surface —
+that would require a differentiable quantized (or QAT) surrogate, which this project
+doesn't build.
 
 ### Latency and model size
 
@@ -203,8 +244,10 @@ compounds specifically under distribution shift.
 ## Conclusion
 
 For this task, INT8 quantization delivers its real-time deployment benefits (~2x latency,
-~3.4x size) at effectively no cost to adversarial robustness for either architecture, and
-at no meaningful cost to corruption robustness for the from-scratch baseline CNN. The one
+~3.4x size) without making either architecture an easier target for adversarial examples
+transferred from the FP32 model (see [Threat models](#threat-models) for what this claim
+does and doesn't cover), and at no meaningful cost to corruption robustness for the
+from-scratch baseline CNN. The one
 genuine robustness cost found is corruption robustness for the transfer-learned
 MobileNetV2 specifically, and specifically at high corruption severity (a regime an
 autonomous system would ideally never operate in for other reasons — e.g. severity-4
@@ -222,6 +265,10 @@ matters more than any of the individually-tested robustness axes.
 
 ## Limitations
 
+- The adversarial-robustness finding only covers the FP32-white-box and FP32→INT8-transfer
+  threat models (see [Threat models](#threat-models)) — it does not establish that the
+  INT8 model is intrinsically more adversarially robust, which would require a
+  differentiable quantized surrogate or an independent black-box source model.
 - Adversarial evaluation used a 2000-image class-stratified subsample of the test set
   (not the full 12,630), since PGD's iterative forward+backward passes make a full sweep
   across 4 epsilons x 2 attacks x 2 models expensive. Corruption evaluation used the full
