@@ -62,9 +62,12 @@ Driven by external feedback on the finished project. Each item gets its own comm
 - [x] Pin exact dependency versions, document test environment
 - [x] Add experiment matrix table to README
 - [x] Add CI (GitHub Actions, pytest on push/PR)
-- [ ] More seeds (7, 999 added to the original 3) and full-test-set adversarial eval
+- [x] More seeds (7, 999 added to the original 3) and full-test-set adversarial eval
       (previously a 2000-image stratified subsample), higher INT8 calibration set (1000,
       up from 200)
+      -> Core finding holds on the full test set and at the larger calibration size;
+         corruption robustness degradation for MobileNetV2 became slightly clearer on
+         rotation specifically (-1.17pp at severity 4, up from -0.80pp)
 - [ ] Black-box threat model: cross-architecture adversarial transfer (baseline_cnn <->
       mobilenet_transfer), no new training needed
 - [ ] Statistical rigor: mean +/- std / bootstrap CIs / significance tests for corruption
