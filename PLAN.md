@@ -53,6 +53,34 @@ Work proceeds one day/session at a time.
 
 Cut (lowest priority, no research value per spec): OpenCV webcam demo.
 
+## Extensions (post-review)
+
+Driven by external feedback on the finished project. Each item gets its own commit(s).
+
+- [x] Sharpen title, add Threat models section distinguishing FP32 white-box from
+      FP32->INT8 transfer attacks
+- [x] Pin exact dependency versions, document test environment
+- [x] Add experiment matrix table to README
+- [x] Add CI (GitHub Actions, pytest on push/PR)
+- [ ] More seeds (7, 999 added to the original 3) and full-test-set adversarial eval
+      (previously a 2000-image stratified subsample), higher INT8 calibration set (1000,
+      up from 200)
+- [ ] Black-box threat model: cross-architecture adversarial transfer (baseline_cnn <->
+      mobilenet_transfer), no new training needed
+- [ ] Statistical rigor: mean +/- std / bootstrap CIs / significance tests for corruption
+      and adversarial robustness deltas across seeds (currently only clean accuracy is
+      multi-seed; robustness evals run on a single seed)
+- [ ] Calibration-set size ablation (50/100/200/500/1000/2000): accuracy, robustness
+      delta, latency at each size
+- [ ] Quantization-aware training (QAT) as a third variant alongside FP32/PTQ INT8,
+      re-run full eval suite; QAT's differentiable fake-quant path also fills the
+      "INT8 white-box" gap noted in Threat models
+- [ ] Expand corruption suite (JPEG compression, fog, rain, shadow, motion blur,
+      perspective), categorized photometric/geometric/noise/environmental
+- [ ] Second OOD dataset beyond Mapillary+DFG
+- [ ] README overhaul: lead with key finding + figures, restructure around
+      question -> result -> evidence -> methodology -> reproduction
+
 ## Notes
 - Dataset: GTSRB (Kaggle: meowmeowmeowmeowmeow/gtsrb-german-traffic-sign)
 - GTSRB train images are sequential video frames of the same physical sign — a naive
