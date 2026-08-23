@@ -67,7 +67,7 @@ inference is intrinsically more adversarially robust than FP32.
   perturbations are used as robustness *test* corruptions later — training on them would
   confound "robust because of architecture/quantization" with "robust because the model
   already saw this during training."
-- Two architectures, each trained across 3 seeds (42, 123, 2024):
+- Two architectures, each trained across 5 seeds (42, 123, 2024, 7, 999):
   - **Baseline CNN**: small from-scratch conv net (4 conv blocks, ~280K params)
   - **MobileNetV2 (transfer)**: ImageNet-pretrained, fully fine-tuned
 
@@ -75,10 +75,10 @@ inference is intrinsically more adversarially robust than FP32.
 
 | Architecture | Test Accuracy | Test Macro-F1 |
 |---|---|---|
-| Baseline CNN | 0.926 +/- 0.008 | 0.887 +/- 0.019 |
-| MobileNetV2 (transfer) | **0.968 +/- 0.004** | **0.947 +/- 0.006** |
+| Baseline CNN | 0.931 +/- 0.010 | 0.898 +/- 0.020 |
+| MobileNetV2 (transfer) | **0.967 +/- 0.005** | **0.946 +/- 0.007** |
 
-(mean +/- std over 3 seeds; see `arch_comparison.png`)
+(mean +/- std over 5 seeds; see `arch_comparison.png`)
 
 MobileNetV2 outperforms the baseline on both metrics with lower run-to-run variance. The
 gap between accuracy and macro-F1 for both models traces back to class imbalance in
@@ -103,12 +103,12 @@ severities each. See `corruption_curves.png`.
 
 ### Adversarial robustness (FP32, white-box)
 
-FGSM and PGD (10 steps), L-inf epsilon in {1,2,4,8}/255, evaluated on a 2000-image
-class-stratified subsample. See `adversarial_curves.png`.
+FGSM and PGD (10 steps), L-inf epsilon in {1,2,4,8}/255, evaluated on the full
+12,630-image test set. See `adversarial_curves.png`.
 
 - Under **FGSM** (weak, single-step), MobileNetV2 looks more robust than the baseline.
 - Under **PGD** (strong, iterative), that reverses: MobileNetV2 is *more* vulnerable
-  (e.g. at eps=1/255, PGD accuracy is 47.1% for baseline vs. 14.8% for MobileNetV2).
+  (e.g. at eps=1/255, PGD accuracy is 47.5% for baseline vs. 15.0% for MobileNetV2).
   This is a textbook **gradient-masking** pattern — a weak attack can give a false sense
   of robustness that a stronger attack exposes.
 - Both models are essentially fully broken (>99% PGD attack success) by eps=8/255.
@@ -118,7 +118,7 @@ class-stratified subsample. See `adversarial_curves.png`.
 Both FP32 models were exported to ONNX (normalization baked into the graph via a
 `NormalizedModel` wrapper, so every downstream evaluation operates on raw [0,1] pixel
 tensors regardless of architecture) and statically quantized to INT8 with ONNX Runtime,
-calibrated on 200 held-out training images.
+calibrated on 1000 held-out training images.
 
 **Methodology note:** gradient-based attacks need a differentiable model, and the
 quantized ONNX graph isn't one. Adversarial examples were generated white-box against the
@@ -132,26 +132,27 @@ and doesn't establish about the INT8 model's intrinsic robustness.
 
 | Architecture | FP32 | INT8 | Delta |
 |---|---|---|---|
-| Baseline CNN | 91.83% | 91.78% | -0.05pp |
-| MobileNetV2 | 97.20% | 96.72% | -0.48pp |
+| Baseline CNN | 91.83% | 91.76% | -0.07pp |
+| MobileNetV2 | 97.20% | 96.59% | -0.61pp |
 
 ### Corruption robustness: unchanged for baseline, degrades for MobileNetV2 at high severity
 
 See `quantization_comparison.png` (left column).
 
-- **Baseline CNN**: differences are within noise at every severity (max |diff| = 0.6pp),
+- **Baseline CNN**: differences are within noise at every severity (max |diff| = 0.56pp),
   in both directions. Quantization has no detectable effect.
-- **MobileNetV2**: a consistent, *monotonically growing* gap as severity increases —
-  roughly 0.5-1pp at severity 1, growing to **-5.6pp (blur) and -9.2pp
-  (brightness/contrast) at severity 4**. Quantization compounds with corruption severity
-  for the transfer-learned model specifically.
+- **MobileNetV2**: a consistent, growing gap on blur, rotation, and brightness/contrast as
+  severity increases — roughly 0.5-1.1pp at severity 1, growing to **-5.6pp (blur), -1.2pp
+  (rotation), and -9.1pp (brightness/contrast) at severity 4**. Gaussian noise stays flat
+  for both architectures. Quantization compounds with corruption severity for the
+  transfer-learned model specifically.
 
 | Corruption (severity 4) | FP32 | INT8 | Delta |
 |---|---|---|---|
-| Blur | 85.15% | 79.55% | -5.60pp |
-| Noise | 10.10% | 9.85% | -0.25pp |
-| Rotation | 72.93% | 72.13% | -0.80pp |
-| Brightness/contrast | 74.75% | 65.58% | **-9.17pp** |
+| Blur | 85.15% | 79.56% | -5.58pp |
+| Noise | 10.10% | 9.93% | -0.17pp |
+| Rotation | 72.93% | 71.76% | -1.17pp |
+| Brightness/contrast | 74.75% | 65.68% | **-9.07pp** |
 
 ### FP32→INT8 transfer-attack success: not higher than FP32 white-box — if anything, slightly lower
 
@@ -162,17 +163,20 @@ against FP32, at every epsilon tested:
 
 | Architecture | eps=1/255 | eps=2/255 | eps=4/255 | eps=8/255 |
 |---|---|---|---|---|
-| Baseline: FP32 white-box | 48.4% | 79.5% | 97.0% | 100.0% |
-| Baseline: INT8 transfer | 47.3% | 78.5% | 96.8% | 100.0% |
-| MobileNetV2: FP32 white-box | 84.8% | 93.6% | 98.3% | 99.7% |
-| MobileNetV2: INT8 transfer | 77.8% | 92.2% | 97.9% | 99.7% |
+| Baseline: FP32 white-box | 48.3% | 78.2% | 97.2% | 100.0% |
+| Baseline: INT8 transfer | 46.7% | 77.7% | 97.1% | 100.0% |
+| MobileNetV2: FP32 white-box | 84.6% | 93.9% | 98.0% | 99.7% |
+| MobileNetV2: INT8 transfer | 77.0% | 92.7% | 97.7% | 99.7% |
 
-Every single comparison shows INT8 transfer success at or below the FP32 white-box rate
-(largest gap: -7.0pp for MobileNetV2 at eps=1/255). This is the expected direction for a
-*transfer* attack — a perturbation optimized against one model's exact decision boundary
-is inherently somewhat less effective against a different (even slightly different)
-model — but it directly contradicts the hypothesis's claim that quantization would
-*increase* vulnerability. FGSM shows the same pattern. As noted in
+Every single PGD comparison shows INT8 transfer success at or below the FP32 white-box
+rate (largest gap: -7.6pp for MobileNetV2 at eps=1/255). This is the expected direction
+for a *transfer* attack — a perturbation optimized against one model's exact decision
+boundary is inherently somewhat less effective against a different (even slightly
+different) model — but it directly contradicts the hypothesis's claim that quantization
+would *increase* vulnerability. FGSM shows a similar pattern overall, with two negligible
+exceptions (MobileNetV2 at eps=4/255 and eps=8/255, where transfer success is +0.2pp and
++0.8pp *higher* than white-box — within run-to-run noise, not a reversal of the finding).
+As noted in
 [Threat models](#threat-models), this speaks to transferability, not to how the INT8
 model would fare against an attack computed directly against its own decision surface —
 that would require a differentiable quantized (or QAT) surrogate, which this project
@@ -234,8 +238,8 @@ is a genuine limitation of the class-mapping approach, not necessarily of the mo
 
 | Architecture | FP32 | INT8 | Delta |
 |---|---|---|---|
-| Baseline CNN | 47.48% | 46.90% | -0.58pp |
-| MobileNetV2 | 68.93% | 68.55% | -0.38pp |
+| Baseline CNN | 47.48% | 47.13% | -0.35pp |
+| MobileNetV2 | 68.93% | 68.29% | -0.64pp |
 
 The FP32-INT8 gap stays small even on this out-of-distribution dataset — reinforcing
 Phase 2's finding that quantization's cost is minor and consistent, not something that
@@ -269,16 +273,16 @@ matters more than any of the individually-tested robustness axes.
   threat models (see [Threat models](#threat-models)) — it does not establish that the
   INT8 model is intrinsically more adversarially robust, which would require a
   differentiable quantized surrogate or an independent black-box source model.
-- Adversarial evaluation used a 2000-image class-stratified subsample of the test set
-  (not the full 12,630), since PGD's iterative forward+backward passes make a full sweep
-  across 4 epsilons x 2 attacks x 2 models expensive. Corruption evaluation used the full
-  test set.
 - FGSM/PGD were hand-implemented rather than via Foolbox/ART, per the spec's suggested
   tools — standard formulations, but not independently cross-checked against a reference
   library implementation.
-- Static INT8 quantization was calibrated on only 200 training images; a larger
-  calibration set might shift the corruption-robustness gap found for MobileNetV2 in
-  either direction.
+- Static INT8 quantization was calibrated on 1000 training images. A systematic
+  calibration-size ablation (50-2000 images) is tracked as follow-up work — see
+  `PLAN.md`.
+- Corruption and adversarial robustness evaluations run on a single seed (42) per
+  architecture; only clean accuracy is aggregated across multiple seeds (5). Extending
+  robustness evaluation to multiple seeds with confidence intervals is tracked as
+  follow-up work.
 - The Mapillary generalization check only covers the 23 GTSRB classes with an
   unambiguous semantic match, excludes all numeric speed-limit classes entirely, and its
   worst-performing per-class results are plausibly confounded by cross-standard
