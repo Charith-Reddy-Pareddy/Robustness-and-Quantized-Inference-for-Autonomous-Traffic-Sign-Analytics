@@ -22,7 +22,7 @@ RAW_DIR = ROOT / "data" / "raw"
 CKPT_DIR = ROOT / "checkpoints"
 REPORTS_DIR = ROOT / "reports"
 
-SEEDS = [42, 123, 2024]
+SEEDS = [42, 123, 2024, 7, 999]
 
 ARCHS = {
     "baseline_cnn": {
