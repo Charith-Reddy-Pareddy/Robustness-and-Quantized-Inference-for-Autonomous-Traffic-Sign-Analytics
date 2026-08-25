@@ -24,9 +24,9 @@ on one axis (corruption, not adversarial).
 
 ## Threat models
 
-The adversarial evaluation in this report covers exactly two threat models, and the
-headline "quantization does not increase adversarial vulnerability" claim only holds for
-the second one:
+The adversarial evaluation in this report covers three threat models. The headline
+"quantization does not increase adversarial vulnerability" claim only holds for the
+second one:
 
 1. **FP32 white-box.** FGSM/PGD computed directly against the FP32 PyTorch model's own
    gradients. This is the baseline everything else is compared to.
@@ -34,26 +34,49 @@ the second one:
    unchanged against the INT8 model. This is a legitimate and realistic threat model on
    its own (an attacker targeting a deployed quantized model typically doesn't have
    white-box access to it either — see the Phase 2 methodology note), but it measures
-   *transferability*, not the INT8 model's intrinsic robustness to an attack tailored to
-   it.
+   *transferability between two nearly identical models* (same architecture, same
+   weights, just quantized), not the INT8 model's intrinsic robustness to an attack
+   tailored to it.
+3. **Black-box cross-architecture transfer.** Adversarial examples crafted against one
+   FP32 architecture, evaluated against the *other*, independently-trained FP32
+   architecture — no shared weights or structure between source and target. See
+   `blackbox_transfer.png` and the table below.
 
-Not tested, and therefore not something this report's results support:
+**Result: cross-architecture transfer is dramatically weaker than same-architecture
+transfer**, confirming that threat model 2's high transfer-success rates are an artifact
+of the FP32/INT8 pair sharing an almost-identical decision boundary, not evidence that
+adversarial examples generally transfer well to this task's models:
+
+| Direction | PGD success eps=1/255 | eps=2/255 | eps=4/255 | eps=8/255 |
+|---|---|---|---|---|
+| Baseline CNN -> MobileNetV2 (black-box) | 0.9% | 2.8% | 8.5% | 23.6% |
+| MobileNetV2 -> Baseline CNN (black-box) | 0.5% | 0.9% | 2.2% | 8.7% |
+| Baseline: FP32 white-box (reference) | 48.3% | 78.2% | 97.2% | 100.0% |
+| MobileNetV2: FP32 white-box (reference) | 84.6% | 93.9% | 98.0% | 99.7% |
+
+At eps=1/255, cross-architecture transfer succeeds on well under 1% of cases where
+same-architecture FP32->INT8 transfer succeeds on 46.7-84.6% — a ~50-100x difference. This
+is the expected result for genuinely independent models and it's exactly what makes
+threat model 2 a weak test of "does quantization help or hurt adversarial robustness":
+same-architecture transfer success mostly reflects shared architecture, not anything
+specific to quantization.
+
+Still not tested, and therefore not something this report's results support:
 
 - **INT8 white-box.** Requires a differentiable path through the quantized graph (e.g. a
   quantization-aware surrogate that fake-quantizes in the forward pass but keeps
   gradients flowing) that this project doesn't build. Without it, there's no way to know
   whether the INT8 model has its *own* nearby adversarial examples that a transfer attack
   simply doesn't find.
-- **Black-box / independent source model.** Attacking with adversarial examples crafted
-  against a *different* model entirely (not FP32-vs-INT8 of the same architecture) would
-  test transferability without the confound of the two models sharing nearly identical
-  decision boundaries.
 
 So the precise, defensible version of this report's adversarial finding is: **FP32-crafted
 adversarial examples transfer to the INT8 model at success rates no higher than white-box
-attacks against FP32 itself.** That's still a useful result — it rules out quantization
-making a deployed model an *easier* transfer target — but it is not evidence that INT8
-inference is intrinsically more adversarially robust than FP32.
+attacks against FP32 itself — but this transfer success is driven mainly by the two
+models sharing an architecture and weights, as shown by how much lower cross-architecture
+transfer success is.** That's still a useful result — it rules out quantization making a
+deployed model an *easier* transfer target than genuine black-box attacks would already
+make it — but it is not evidence that INT8 inference is intrinsically more adversarially
+robust than FP32.
 
 ## Dataset and methodology
 
@@ -269,10 +292,10 @@ matters more than any of the individually-tested robustness axes.
 
 ## Limitations
 
-- The adversarial-robustness finding only covers the FP32-white-box and FP32→INT8-transfer
-  threat models (see [Threat models](#threat-models)) — it does not establish that the
-  INT8 model is intrinsically more adversarially robust, which would require a
-  differentiable quantized surrogate or an independent black-box source model.
+- The adversarial-robustness finding covers FP32-white-box, FP32→INT8-transfer, and
+  black-box cross-architecture transfer (see [Threat models](#threat-models)) — it does
+  not establish that the INT8 model is intrinsically more adversarially robust, which
+  would require a differentiable quantized surrogate (true INT8 white-box).
 - FGSM/PGD were hand-implemented rather than via Foolbox/ART, per the spec's suggested
   tools — standard formulations, but not independently cross-checked against a reference
   library implementation.
@@ -300,3 +323,4 @@ All in `reports/`:
 - `adversarial_curves.png` — FP32 accuracy vs. attack strength (FGSM, PGD)
 - `quantization_comparison.png` — FP32 vs. INT8, corruption + adversarial, side by side
 - `mapillary_generalization.png` — GTSRB vs. Mapillary accuracy, per-class F1 breakdown
+- `blackbox_transfer.png` — black-box cross-architecture transfer vs. white-box PGD
