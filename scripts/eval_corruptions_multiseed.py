@@ -46,7 +46,10 @@ ARCHS = {
 def evaluate(model, test_df, device, mean, std, corruption_fn=None):
     transform = get_transform(mean=mean, std=std, corruption_fn=corruption_fn)
     ds = GTSRBDataset(test_df, transform=transform)
-    preds, labels = predict(model, ds, device)
+    # num_workers=0: forked DataLoader workers deadlock against the MPS backend on this
+    # machine once a long-running multi-seed loop keeps the device context alive across
+    # many models (single-seed eval_corruptions.py never hit this at n=1 model load).
+    preds, labels = predict(model, ds, device, num_workers=0)
     s = summarize(preds, labels)
     return {"accuracy": s["accuracy"], "macro_f1": s["macro_f1"]}
 
