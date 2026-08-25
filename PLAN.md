@@ -68,8 +68,11 @@ Driven by external feedback on the finished project. Each item gets its own comm
       -> Core finding holds on the full test set and at the larger calibration size;
          corruption robustness degradation for MobileNetV2 became slightly clearer on
          rotation specifically (-1.17pp at severity 4, up from -0.80pp)
-- [ ] Black-box threat model: cross-architecture adversarial transfer (baseline_cnn <->
+- [x] Black-box threat model: cross-architecture adversarial transfer (baseline_cnn <->
       mobilenet_transfer), no new training needed
+      -> Confirms the FP32->INT8 transfer finding was mostly an artifact of shared
+         architecture: cross-arch PGD transfer succeeds on <1% of cases at eps=1/255,
+         vs. 46.7-84.6% for same-architecture FP32->INT8 transfer
 - [ ] Statistical rigor: mean +/- std / bootstrap CIs / significance tests for corruption
       and adversarial robustness deltas across seeds (currently only clean accuracy is
       multi-seed; robustness evals run on a single seed)
