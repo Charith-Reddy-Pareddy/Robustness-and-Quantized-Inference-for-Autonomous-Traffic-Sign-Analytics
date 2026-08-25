@@ -37,7 +37,7 @@ def main():
         ax.grid(alpha=0.3)
         ax.legend(fontsize=8)
 
-    fig.suptitle("Accuracy vs. adversarial attack strength (2000-image stratified subsample)")
+    fig.suptitle("Accuracy vs. adversarial attack strength (full 12,630-image test set)")
     fig.tight_layout()
     out_path = REPORTS_DIR / "adversarial_curves.png"
     fig.savefig(out_path, dpi=120)
