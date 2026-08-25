@@ -1,0 +1,112 @@
+{
+  "baseline_cnn_to_mobilenet_transfer": {
+    "target_clean_accuracy": 0.9719714964370546,
+    "fgsm": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.9624703087885986,
+        "transfer_attack_success_rate": 0.011078527207559466,
+        "clean_correct_count": 12276
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.9463974663499604,
+        "transfer_attack_success_rate": 0.02826653633105246,
+        "clean_correct_count": 12276
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.8931908155186065,
+        "transfer_attack_success_rate": 0.08341479309221245,
+        "clean_correct_count": 12276
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.7220902612826603,
+        "transfer_attack_success_rate": 0.25871619420006514,
+        "clean_correct_count": 12276
+      }
+    ],
+    "pgd": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.963895486935867,
+        "transfer_attack_success_rate": 0.009449332029977192,
+        "clean_correct_count": 12276
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.9469517022961204,
+        "transfer_attack_success_rate": 0.02761485826001955,
+        "clean_correct_count": 12276
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.891686460807601,
+        "transfer_attack_success_rate": 0.08479960899315737,
+        "clean_correct_count": 12276
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.7445764053840064,
+        "transfer_attack_success_rate": 0.23582600195503423,
+        "clean_correct_count": 12276
+      }
+    ]
+  },
+  "mobilenet_transfer_to_baseline_cnn": {
+    "target_clean_accuracy": 0.918289786223278,
+    "fgsm": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.914806017418844,
+        "transfer_attack_success_rate": 0.005000862217623728,
+        "clean_correct_count": 11598
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.9075217735550277,
+        "transfer_attack_success_rate": 0.013795481979651664,
+        "clean_correct_count": 11598
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.8775930324623912,
+        "transfer_attack_success_rate": 0.04940506983962752,
+        "clean_correct_count": 11598
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.7380839271575613,
+        "transfer_attack_success_rate": 0.2021900327642697,
+        "clean_correct_count": 11598
+      }
+    ],
+    "pgd": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.9146476642913698,
+        "transfer_attack_success_rate": 0.004828418692878082,
+        "clean_correct_count": 11598
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.9119556611243073,
+        "transfer_attack_success_rate": 0.008794619762027936,
+        "clean_correct_count": 11598
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.9012668250197942,
+        "transfer_attack_success_rate": 0.022158992929815484,
+        "clean_correct_count": 11598
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.8444180522565321,
+        "transfer_attack_success_rate": 0.08673909294705984,
+        "clean_correct_count": 11598
+      }
+    ]
+  }
+}
