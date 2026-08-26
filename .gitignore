@@ -12,3 +12,4 @@ runs/
 *.pt
 checkpoints/
 .ipynb_checkpoints/
+logs/
