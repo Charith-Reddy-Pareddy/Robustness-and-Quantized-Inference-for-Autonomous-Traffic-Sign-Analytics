@@ -59,10 +59,17 @@ def main():
     set_seed(42)
     test_df = load_test_dataframe(RAW_DIR)
 
-    results = {}
+    REPORTS_DIR.mkdir(exist_ok=True)
+    out_path = REPORTS_DIR / "corruption_results_multiseed_fp32.json"
+    results = json.loads(out_path.read_text()) if out_path.exists() else {}
+
     for arch_name, cfg in ARCHS.items():
-        results[arch_name] = {}
+        results.setdefault(arch_name, {})
         for seed in SEEDS:
+            if str(seed) in results[arch_name]:
+                print(f"{arch_name} seed{seed}: already done, skipping")
+                continue
+
             model = cfg["model_fn"]()
             model.load_state_dict(torch.load(CKPT_DIR / f"{arch_name}_seed{seed}.pt", map_location=device))
             model = model.to(device).eval()
@@ -79,9 +86,8 @@ def main():
             results[arch_name][str(seed)] = seed_results
             print(f"{arch_name} seed{seed}: clean={seed_results['clean']}")
 
-    REPORTS_DIR.mkdir(exist_ok=True)
-    out_path = REPORTS_DIR / "corruption_results_multiseed_fp32.json"
-    out_path.write_text(json.dumps(results, indent=2))
+            out_path.write_text(json.dumps(results, indent=2))
+
     print(f"Saved {out_path}")
 
 

@@ -39,10 +39,17 @@ def evaluate(onnx_path, test_df, corruption_fn=None):
 
 def main():
     test_df = load_test_dataframe(RAW_DIR)
-    results = {}
+    REPORTS_DIR.mkdir(exist_ok=True)
+    out_path = REPORTS_DIR / "calibration_ablation_results.json"
+    results = json.loads(out_path.read_text()) if out_path.exists() else {}
+
     for arch_name in ARCHS:
-        results[arch_name] = {}
+        results.setdefault(arch_name, {})
         for n in CALIBRATION_SIZES:
+            if str(n) in results[arch_name]:
+                print(f"{arch_name} calib={n}: already done, skipping")
+                continue
+
             onnx_path = ONNX_DIR / f"{arch_name}_calib{n}_int8.onnx"
             size_kb = onnx_path.stat().st_size / 1024
 
@@ -55,10 +62,8 @@ def main():
                     size_results[corr_name].append(metrics)
             results[arch_name][str(n)] = size_results
             print(f"{arch_name} calib={n}: clean={size_results['clean']}, size={size_kb:.1f}KB")
+            out_path.write_text(json.dumps(results, indent=2))
 
-    REPORTS_DIR.mkdir(exist_ok=True)
-    out_path = REPORTS_DIR / "calibration_ablation_results.json"
-    out_path.write_text(json.dumps(results, indent=2))
     print(f"Saved {out_path}")
 
 

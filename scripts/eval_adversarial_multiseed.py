@@ -102,12 +102,20 @@ def main():
     ds = GTSRBDataset(test_df, transform=pixel_transform)
     loader = DataLoader(ds, batch_size=64, shuffle=False, num_workers=0)
 
-    white_box_results = {}
-    transfer_results = {}
+    REPORTS_DIR.mkdir(exist_ok=True)
+    wb_path = REPORTS_DIR / "adversarial_results_multiseed_whitebox.json"
+    tr_path = REPORTS_DIR / "adversarial_results_multiseed_transfer.json"
+    white_box_results = json.loads(wb_path.read_text()) if wb_path.exists() else {}
+    transfer_results = json.loads(tr_path.read_text()) if tr_path.exists() else {}
+
     for arch_name, cfg in ARCHS.items():
-        white_box_results[arch_name] = {}
-        transfer_results[arch_name] = {}
+        white_box_results.setdefault(arch_name, {})
+        transfer_results.setdefault(arch_name, {})
         for seed in SEEDS:
+            if str(seed) in white_box_results[arch_name] and str(seed) in transfer_results[arch_name]:
+                print(f"{arch_name} seed{seed}: already done, skipping")
+                continue
+
             base_model = cfg["model_fn"]()
             base_model.load_state_dict(
                 torch.load(CKPT_DIR / f"{arch_name}_seed{seed}.pt", map_location=device)
@@ -118,6 +126,7 @@ def main():
                 run_white_box(fp32_model, loader, device, eps) for eps in EPSILONS
             ]
             print(f"{arch_name} seed{seed} white-box: {white_box_results[arch_name][str(seed)]}")
+            wb_path.write_text(json.dumps(white_box_results, indent=2))
 
             onnx_path = ONNX_DIR / f"{arch_name}_seed{seed}_int8.onnx"
             onnx_sess = ort.InferenceSession(str(onnx_path))
@@ -126,14 +135,8 @@ def main():
                 run_transfer(fp32_model, onnx_sess, input_name, loader, device, eps) for eps in EPSILONS
             ]
             print(f"{arch_name} seed{seed} transfer: {transfer_results[arch_name][str(seed)]}")
+            tr_path.write_text(json.dumps(transfer_results, indent=2))
 
-    REPORTS_DIR.mkdir(exist_ok=True)
-    (REPORTS_DIR / "adversarial_results_multiseed_whitebox.json").write_text(
-        json.dumps(white_box_results, indent=2)
-    )
-    (REPORTS_DIR / "adversarial_results_multiseed_transfer.json").write_text(
-        json.dumps(transfer_results, indent=2)
-    )
     print("Saved multi-seed adversarial results")
 
 
