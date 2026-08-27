@@ -95,13 +95,19 @@ Driven by external feedback on the finished project. Each item gets its own comm
       -> Key-finding callout + 4 embedded figures at the top, experiment matrix,
          environment/reproducibility notes. Also shipped an interactive metrics
          dashboard (docs/index.html, GitHub Pages) covering the same results.
-- [ ] Quantization-aware training (QAT) as a third variant alongside FP32/PTQ INT8,
+- [x] Quantization-aware training (QAT) as a third variant alongside FP32/PTQ INT8,
       re-run full eval suite; QAT's differentiable fake-quant path also fills the
       "INT8 white-box" gap noted in Threat models
-      -> Training complete (both archs). Corruption eval complete. Adversarial eval
-         (true INT8 white-box + FP32->QAT transfer) still running in the background.
-- [ ] Expand corruption suite (JPEG compression, fog, rain, shadow, motion blur,
-      perspective), categorized photometric/geometric/noise/environmental
+      -> QAT (3 epochs, fine-tuned from FP32 seed42) genuinely improves the baseline
+         CNN on every axis (accuracy, all 10 corruption types, true INT8 white-box PGD)
+         but leaves MobileNetV2 roughly unchanged/slightly worse -- confounded with the
+         3 extra fine-tuning epochs PTQ never received. Full writeup: Phase 4 in
+         ROBUSTNESS_REPORT.md.
+- [x] Expand corruption suite (JPEG compression, fog, rain, shadow, motion blur,
+      perspective), categorized noise/blur/geometric/photometric/environmental
+      -> 10 corruptions total; re-ran FP32, PTQ, and QAT eval across all of them.
+         Notable finding: shadow is the one corruption where the baseline CNN is more
+         robust than MobileNetV2 (reverses the usual pattern).
 - [ ] Second OOD dataset beyond Mapillary+DFG
 
 ## Notes
