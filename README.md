@@ -7,17 +7,21 @@ preserved?
 **[Live metrics dashboard](https://charith-reddy-pareddy.github.io/Robustness-and-Quantized-Inference-for-Autonomous-Traffic-Sign-Analytics/)** &middot;
 full write-up, methodology, and results: [reports/ROBUSTNESS_REPORT.md](reports/ROBUSTNESS_REPORT.md)
 
-> **Key finding:** INT8 cut model size ~3.4x and latency ~2x with clean accuracy preserved
-> (≤0.6pp drop). Adversarial examples transferred from FP32 to INT8 no more effectively
-> than white-box attacks against FP32 itself — but a genuine black-box attack (crafted
-> against the *other* architecture entirely) succeeds far less often than that same-model
-> transfer does, showing the FP32→INT8 transfer numbers mostly reflect two nearly-identical
-> decision boundaries, not intrinsic INT8 robustness. Corruption robustness held for the
-> baseline CNN but degraded for MobileNetV2 at high severity (up to -9pp). Both models also
-> generalize far worse than their GTSRB numbers suggest on a different dataset
-> (Mapillary+DFG) — but the FP32-vs-INT8 gap stays just as small there as on GTSRB.
+> **Key finding:** post-training INT8 (PTQ) cuts model size ~3.4x and latency ~2x with
+> clean accuracy preserved (≤0.6pp drop). Adversarial examples transferred from FP32 to
+> PTQ-INT8 no more effectively than white-box attacks against FP32 itself — but a genuine
+> black-box attack (crafted against the *other* architecture entirely) succeeds far less
+> often than that same-model transfer does, showing the transfer numbers mostly reflect
+> two nearly-identical decision boundaries, not intrinsic INT8 robustness. A genuine INT8
+> **white-box** attack, via quantization-aware training's differentiable surrogate, tells
+> a more architecture-dependent story: QAT measurably *improves* the baseline CNN's
+> adversarial and corruption robustness (better on all 10 corruption types tested) but
+> leaves MobileNetV2's roughly unchanged — confounded, in both cases, with the extra
+> fine-tuning epochs PTQ never received. Both models also generalize far worse than their
+> GTSRB numbers suggest on a different dataset (Mapillary+DFG) — but the FP32-vs-INT8 gap
+> stays just as small there as on GTSRB.
 
-| Architecture comparison (FP32, 5 seeds) | Corruption + adversarial, FP32 vs. INT8 |
+| Architecture comparison (FP32, 5 seeds) | Corruption + adversarial, FP32 vs. PTQ |
 |---|---|
 | ![Architecture comparison](reports/arch_comparison.png) | ![Quantization comparison](reports/quantization_comparison.png) |
 
@@ -25,10 +29,14 @@ full write-up, methodology, and results: [reports/ROBUSTNESS_REPORT.md](reports/
 |---|---|
 | ![Mapillary generalization](reports/mapillary_generalization.png) | ![Black-box transfer](reports/blackbox_transfer.png) |
 
+| FP32 vs. PTQ vs. QAT, all 10 corruption types | PGD success, all 4 adversarial threat models |
+|---|---|
+| ![QAT corruption comparison](reports/qat_corruption_comparison.png) | ![QAT adversarial comparison](reports/qat_adversarial_comparison.png) |
+
 See [Threat models](reports/ROBUSTNESS_REPORT.md#threat-models) in the full report for
-exactly what the adversarial claim does and doesn't establish. A multi-seed statistical
-pass (confidence intervals, bootstrap CIs, and significance tests on the FP32-vs-INT8
-deltas above) is in progress — see `PLAN.md`.
+exactly what each adversarial claim does and doesn't establish, and
+[Phase 4](reports/ROBUSTNESS_REPORT.md#phase-4-quantization-aware-training-qat) for the
+full QAT write-up including its training-confound caveat.
 
 ## Methodology summary
 
@@ -37,26 +45,30 @@ deltas above) is in progress — see `PLAN.md`.
   near-duplicates across the split).
 - **Architectures**: a from-scratch CNN and a fine-tuned MobileNetV2, each trained across
   5 seeds.
-- **Robustness axes**: 4 corruption types x 4 severities; FGSM/PGD adversarial attacks
-  across 4 epsilons; out-of-distribution generalization to a second dataset.
-- **Quantization**: static INT8 via ONNX Runtime, evaluated against FP32 on every axis
-  above.
+- **Robustness axes**: 10 corruption types (noise, blur, geometric, photometric,
+  environmental) x 4 severities; FGSM/PGD adversarial attacks across 4 epsilons;
+  out-of-distribution generalization to a second dataset.
+- **Quantization**: static PTQ (ONNX Runtime) and QAT (PyTorch, fine-tuned from the FP32
+  checkpoint), each evaluated against FP32 on every axis above; QAT's differentiable
+  fake-quant path also enables a genuine INT8 white-box adversarial attack.
 - Full dataset/methodology detail: [reports/ROBUSTNESS_REPORT.md](reports/ROBUSTNESS_REPORT.md#dataset-and-methodology).
 
 ## Experiment matrix
 
-| Dimension | Baseline CNN FP32 | Baseline CNN INT8 | MobileNetV2 FP32 | MobileNetV2 INT8 |
-|---|---|---|---|---|
-| Clean accuracy | ✓ | ✓ | ✓ | ✓ |
-| Corruption robustness | ✓ | ✓ | ✓ | ✓ |
-| FGSM | ✓ | ✓ (transfer) | ✓ | ✓ (transfer) |
-| PGD | ✓ | ✓ (transfer) | ✓ | ✓ (transfer) |
-| Mapillary OOD generalization | ✓ | ✓ | ✓ | ✓ |
-| Latency | ✓ | ✓ | ✓ | ✓ |
-| Model size | ✓ | ✓ | ✓ | ✓ |
+| Dimension | Baseline CNN FP32 | Baseline CNN PTQ | Baseline CNN QAT | MobileNetV2 FP32 | MobileNetV2 PTQ | MobileNetV2 QAT |
+|---|---|---|---|---|---|---|
+| Clean accuracy | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Corruption robustness (10 types) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| FGSM | ✓ | ✓ (transfer) | ✓ (transfer) | ✓ | ✓ (transfer) | ✓ (transfer) |
+| PGD | ✓ | ✓ (transfer) | ✓ (transfer + white-box) | ✓ | ✓ (transfer) | ✓ (transfer + white-box) |
+| Mapillary OOD generalization | ✓ | ✓ | — | ✓ | ✓ | — |
+| Latency | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Model size | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
-INT8 adversarial columns are transfer attacks (FP32-crafted examples evaluated against
-INT8), not independent white-box attacks — see [Threat models](reports/ROBUSTNESS_REPORT.md#threat-models).
+PTQ adversarial columns are transfer attacks (FP32-crafted examples evaluated against
+INT8), not independent white-box attacks. QAT's PGD column includes a genuine white-box
+attack via its differentiable fake-quant surrogate — see
+[Threat models](reports/ROBUSTNESS_REPORT.md#threat-models).
 
 ## Project structure
 
@@ -107,8 +119,12 @@ python scripts/quantize_models.py            # export to ONNX + static INT8 quan
 python scripts/eval_corruptions_int8.py      # INT8 corruption robustness
 python scripts/eval_transfer_attacks.py      # INT8 transfer-attack evaluation
 python scripts/eval_blackbox_transfer.py     # cross-architecture black-box transfer
-python scripts/benchmark_latency.py          # FP32 vs INT8 latency/size
+python scripts/benchmark_latency.py          # FP32 vs INT8 latency/size (PTQ, ONNX Runtime)
 python scripts/eval_mapillary_generalization.py  # generalization check (see below)
+python scripts/train_qat.py                  # QAT fine-tuning, both architectures (CPU only)
+python scripts/eval_corruptions_qat.py       # QAT corruption robustness, all 10 types
+python scripts/eval_adversarial_qat.py       # QAT white-box + FP32->QAT transfer PGD/FGSM
+python scripts/benchmark_latency_qat.py      # FP32 vs QAT latency/size (PyTorch/qnnpack)
 ```
 
 The generalization check needs the [Mapillary+DFG dataset](https://www.kaggle.com/datasets/nomihsa965/traffic-signs-dataset-mapillary-and-dfg)
