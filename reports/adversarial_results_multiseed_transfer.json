@@ -1,0 +1,226 @@
+{
+  "baseline_cnn": {
+    "42": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.48883610451306414,
+        "transfer_attack_success_rate": 0.46725342997670205
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.20506730007917656,
+        "transfer_attack_success_rate": 0.776512209854172
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.026761678543151226,
+        "transfer_attack_success_rate": 0.9708344119423591
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.0,
+        "transfer_attack_success_rate": 1.0
+      }
+    ],
+    "123": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.5534441805225653,
+        "transfer_attack_success_rate": 0.4093290518844009
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.22462391132224863,
+        "transfer_attack_success_rate": 0.7602670272097347
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.026524148851939825,
+        "transfer_attack_success_rate": 0.9716917356768633
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.0,
+        "transfer_attack_success_rate": 1.0
+      }
+    ],
+    "2024": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.4592240696753761,
+        "transfer_attack_success_rate": 0.5012468827930174
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.16880443388756927,
+        "transfer_attack_success_rate": 0.816665233468054
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.023357086302454474,
+        "transfer_attack_success_rate": 0.9746323845558518
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.000395882818685669,
+        "transfer_attack_success_rate": 0.9995700404162009
+      }
+    ],
+    "7": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.5615993665874901,
+        "transfer_attack_success_rate": 0.40539860843322995
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.22707838479809977,
+        "transfer_attack_success_rate": 0.7595775002095733
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.03388756927949327,
+        "transfer_attack_success_rate": 0.9641210495431302
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.0009501187648456057,
+        "transfer_attack_success_rate": 0.9989940481180317
+      }
+    ],
+    "999": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.5098178939034046,
+        "transfer_attack_success_rate": 0.45269868253293666
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.2156769596199525,
+        "transfer_attack_success_rate": 0.7684657883552911
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.04251781472684085,
+        "transfer_attack_success_rate": 0.9543561410964726
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.0,
+        "transfer_attack_success_rate": 1.0
+      }
+    ]
+  },
+  "mobilenet_transfer": {
+    "42": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.22216943784639748,
+        "transfer_attack_success_rate": 0.7699811459955734
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.07078384798099763,
+        "transfer_attack_success_rate": 0.9267153045331584
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.022090261282660333,
+        "transfer_attack_success_rate": 0.9771292728912206
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.0030878859857482186,
+        "transfer_attack_success_rate": 0.9968030166407083
+      }
+    ],
+    "123": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.22818685669041963,
+        "transfer_attack_success_rate": 0.7639832937515355
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.06951702296120349,
+        "transfer_attack_success_rate": 0.9280976169027926
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.01852731591448931,
+        "transfer_attack_success_rate": 0.9808369502907215
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.0026920031670625497,
+        "transfer_attack_success_rate": 0.9972156252559168
+      }
+    ],
+    "2024": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.22185273159144894,
+        "transfer_attack_success_rate": 0.7672177452853701
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.08036421219319081,
+        "transfer_attack_success_rate": 0.9156766636205035
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.033570863024544734,
+        "transfer_attack_success_rate": 0.9647752762316192
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.006175771971496437,
+        "transfer_attack_success_rate": 0.9935199800614771
+      }
+    ],
+    "7": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.2016627078384798,
+        "transfer_attack_success_rate": 0.7886131629180845
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.08036421219319081,
+        "transfer_attack_success_rate": 0.9157606440368495
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.023198733174980207,
+        "transfer_attack_success_rate": 0.9756826292638393
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.001266825019794141,
+        "transfer_attack_success_rate": 0.998672088970039
+      }
+    ],
+    "999": [
+      {
+        "epsilon": 0.00392156862745098,
+        "accuracy": 0.22565320665083136,
+        "transfer_attack_success_rate": 0.7666994106090373
+      },
+      {
+        "epsilon": 0.00784313725490196,
+        "accuracy": 0.0831353919239905,
+        "transfer_attack_success_rate": 0.9140471512770137
+      },
+      {
+        "epsilon": 0.01568627450980392,
+        "accuracy": 0.021456848772763264,
+        "transfer_attack_success_rate": 0.9778159790438768
+      },
+      {
+        "epsilon": 0.03137254901960784,
+        "accuracy": 0.0028503562945368173,
+        "transfer_attack_success_rate": 0.9970530451866405
+      }
+    ]
+  }
+}
