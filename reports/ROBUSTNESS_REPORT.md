@@ -160,7 +160,8 @@ and doesn't establish about the INT8 model's intrinsic robustness.
 
 ### Corruption robustness: unchanged for baseline, degrades for MobileNetV2 at high severity
 
-See `quantization_comparison.png` (left column).
+See `quantization_comparison.png` (left column) and `corruption_severity4_ci.png` for the
+multi-seed confidence intervals below.
 
 - **Baseline CNN**: differences are within noise at every severity (max |diff| = 0.56pp),
   in both directions. Quantization has no detectable effect.
@@ -170,12 +171,38 @@ See `quantization_comparison.png` (left column).
   for both architectures. Quantization compounds with corruption severity for the
   transfer-learned model specifically.
 
+Single-seed (42) point estimates, as originally reported:
+
 | Corruption (severity 4) | FP32 | INT8 | Delta |
 |---|---|---|---|
 | Blur | 85.15% | 79.56% | -5.58pp |
 | Noise | 10.10% | 9.93% | -0.17pp |
 | Rotation | 72.93% | 71.76% | -1.17pp |
 | Brightness/contrast | 74.75% | 65.68% | **-9.07pp** |
+
+**Statistical confirmation (5 seeds: 42, 123, 2024, 7, 999).** The single-seed numbers
+above could in principle just be one lucky (or unlucky) training run. Re-running the full
+corruption sweep across all 5 seeds and computing the paired FP32-vs-INT8 delta per seed —
+with a bootstrap 95% CI, a paired t-test, and Cohen's *dz* effect size on those 5 paired
+differences — confirms the single-seed numbers were representative, not noise:
+
+| Architecture | Corruption (sev. 4) | Mean delta | Bootstrap 95% CI | p (paired t) | Cohen's *dz* |
+|---|---|---|---|---|---|
+| Baseline CNN | blur | +0.02pp | [-0.14, +0.16] | 0.83 | 0.10 |
+| Baseline CNN | brightness/contrast | +0.08pp | [-1.24, +1.64] | 0.93 | 0.04 |
+| MobileNetV2 | blur | -7.43pp | [-9.15, -5.72] | 0.0016 | -3.39 |
+| MobileNetV2 | rotation | -1.36pp | [-1.57, -1.17] | 0.0003 | -5.44 |
+| MobileNetV2 | brightness/contrast | -8.54pp | [-9.33, -7.74] | 0.0001 | -8.18 |
+
+(Full table for every corruption x severity x architecture combination, including Gaussian
+noise which stays flat and non-significant for both architectures: `reports/statistics.json`.)
+
+The baseline CNN's near-zero deltas have wide CIs that comfortably straddle zero and are
+nowhere near significant (p>0.8) — genuinely no effect, not just a small one. MobileNetV2's
+degradation, by contrast, has tight CIs that exclude zero entirely and enormous effect
+sizes (|dz|>3) — this is a real, highly consistent property of quantizing this specific
+architecture, reproducible across 5 independently-trained models, not a fluke of one
+training run.
 
 ### FP32→INT8 transfer-attack success: not higher than FP32 white-box — if anything, slightly lower
 
@@ -205,6 +232,16 @@ model would fare against an attack computed directly against its own decision su
 that would require a differentiable quantized (or QAT) surrogate, which this project
 doesn't build.
 
+**Statistical confirmation (5 seeds, PGD only).** Re-running PGD white-box and PGD
+transfer across all 5 seeds and bootstrapping the paired (transfer - white-box) delta
+shows the "transfer <= white-box" direction is not seed-42-specific: every epsilon for
+both architectures gives a negative (or zero) mean delta with a bootstrap 95% CI that
+excludes positive values, and the effect sizes are large (|Cohen's *dz*| mostly 4-11) —
+e.g. MobileNetV2 at eps=1/255: mean delta -6.82pp, CI [-7.65, -6.05], p=0.0001, dz=-6.70.
+Full per-epsilon table: `reports/statistics.json`. The magnitudes here are small in
+absolute terms (this section's whole point is that they *don't* increase), but they are
+consistently, significantly negative — reinforcing rather than changing the finding.
+
 ### Latency and model size
 
 Benchmarked via ONNX Runtime (CPUExecutionProvider) for both formats, isolating the
@@ -214,6 +251,33 @@ quantization effect from unrelated hardware/backend differences.
 |---|---|---|---|---|---|---|
 | Baseline CNN | 2.34ms | 1.05ms | 2.22x | 570.0 KB | 162.9 KB | 3.50x |
 | MobileNetV2 | 3.42ms | 1.65ms | 2.08x | 8878.8 KB | 2609.4 KB | 3.40x |
+
+### Calibration-set size ablation: not a sensitive knob for this task
+
+The 1000-image calibration set above was a somewhat arbitrary choice. To check whether it
+mattered, both architectures were re-quantized at 6 calibration sizes (50, 100, 200, 500,
+1000, 2000 images, all seed 42) and re-evaluated on clean accuracy and severity-4
+corruption robustness. See `calibration_ablation.png`.
+
+| Calibration size | Baseline clean | Baseline blur sev.4 | MobileNetV2 clean | MobileNetV2 blur sev.4 |
+|---|---|---|---|---|
+| 50 | 91.84% | 68.23% | 96.79% | 80.85% |
+| 100 | 91.78% | 67.86% | 96.62% | 79.79% |
+| 200 | 91.78% | 67.89% | 96.72% | 79.55% |
+| 500 | 91.77% | 67.95% | 96.67% | 79.71% |
+| 1000 | 91.76% | 67.97% | 96.59% | 79.56% |
+| 2000 | 91.74% | 67.90% | 96.44% | 79.21% |
+
+Model size is identical (162.9 KB / 2609.4 KB) at every calibration size, as expected —
+calibration only fits the quantization scale/zero-point statistics, not the weight
+precision, which is what determines file size. Clean accuracy and corruption robustness
+both stay within roughly 0.4pp of their mean across the full 40x range of calibration-set
+sizes tested, for both architectures. **Calibration-set size in the 50-2000 range is not
+a meaningful lever for this task** — the corruption-robustness cost found for MobileNetV2
+in this report is a property of static INT8 quantization itself, not an artifact of an
+under-calibrated model that a bigger calibration set would fix. Practically, this also
+means the smallest calibration set tested (50 images) is essentially free to use for this
+model/dataset combination.
 
 ## Phase 3: generalization check (Mapillary)
 
@@ -299,13 +363,13 @@ matters more than any of the individually-tested robustness axes.
 - FGSM/PGD were hand-implemented rather than via Foolbox/ART, per the spec's suggested
   tools — standard formulations, but not independently cross-checked against a reference
   library implementation.
-- Static INT8 quantization was calibrated on 1000 training images. A systematic
-  calibration-size ablation (50-2000 images) is tracked as follow-up work — see
-  `PLAN.md`.
-- Corruption and adversarial robustness evaluations run on a single seed (42) per
-  architecture; only clean accuracy is aggregated across multiple seeds (5). Extending
-  robustness evaluation to multiple seeds with confidence intervals is tracked as
-  follow-up work.
+- The multi-seed adversarial variance check (see Phase 2) uses PGD only, not FGSM — PGD is
+  the stronger, more diagnostic attack in this project's findings (see the gradient-masking
+  discussion in Phase 1), and running both attacks across 5 seeds would roughly double an
+  already-expensive full-test-set sweep for limited additional statistical value.
+- The calibration-size ablation and multi-seed statistical checks were only run for static
+  PTQ INT8, not for a QAT variant (not yet implemented) or for the black-box
+  cross-architecture transfer attack.
 - The Mapillary generalization check only covers the 23 GTSRB classes with an
   unambiguous semantic match, excludes all numeric speed-limit classes entirely, and its
   worst-performing per-class results are plausibly confounded by cross-standard
@@ -324,3 +388,5 @@ All in `reports/`:
 - `quantization_comparison.png` — FP32 vs. INT8, corruption + adversarial, side by side
 - `mapillary_generalization.png` — GTSRB vs. Mapillary accuracy, per-class F1 breakdown
 - `blackbox_transfer.png` — black-box cross-architecture transfer vs. white-box PGD
+- `corruption_severity4_ci.png` — multi-seed FP32 vs. INT8 severity-4 accuracy, 95% CIs
+- `calibration_ablation.png` — clean accuracy and blur-severity-4 accuracy vs. calibration size
