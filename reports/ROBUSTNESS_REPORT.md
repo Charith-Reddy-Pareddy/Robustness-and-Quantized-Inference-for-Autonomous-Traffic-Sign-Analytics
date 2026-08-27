@@ -118,14 +118,21 @@ rather than background — required for MobileNetV2 to hold at a non-default tar
 
 ### Corruption robustness (FP32)
 
-Four corruptions (blur, Gaussian noise, rotation, brightness/contrast shift), 4
-severities each. See `corruption_curves.png`.
+Ten corruptions, 4 severities each, grouped into 5 categories (noise; blur — Gaussian
+and motion; geometric — rotation and perspective; photometric — brightness/contrast and
+JPEG compression; environmental — fog, rain, shadow). See `corruption_curves.png`.
 
-- MobileNetV2 is consistently more robust than the baseline on blur, rotation, and
-  brightness/contrast at every severity.
+- MobileNetV2 is consistently more robust than the baseline on blur, motion blur,
+  rotation, perspective, brightness/contrast, JPEG compression, and fog at every
+  severity.
 - **Gaussian noise is the exception**: both architectures collapse to near-random
   accuracy (<10%) by severity 4, regardless of pretraining. Transfer learning's
-  robustness advantage does not extend to raw pixel noise.
+  robustness advantage does not extend to raw pixel noise. Rain (also pixel-level,
+  though structured rather than uniform) shows the same pattern, if less extreme
+  (~27-31% at severity 4 for both).
+- **Shadow reverses the usual pattern**: the baseline CNN is *more* robust than
+  MobileNetV2 at severity 4 (72.8% vs. 64.6%) — the only corruption type where transfer
+  learning's advantage disappears entirely rather than just shrinking.
 
 ### Adversarial robustness (FP32, white-box)
 
@@ -164,7 +171,9 @@ and doesn't establish about the INT8 model's intrinsic robustness.
 ### Corruption robustness: unchanged for baseline, degrades for MobileNetV2 at high severity
 
 See `quantization_comparison.png` (left column) and `corruption_severity4_ci.png` for the
-multi-seed confidence intervals below.
+multi-seed confidence intervals below. This subsection covers the original 4 corruption
+types, the only ones with multi-seed statistical backing; Phase 4's corruption table
+covers the full 10-type suite (single-seed) alongside QAT.
 
 - **Baseline CNN**: differences are within noise at every severity (max |diff| = 0.56pp),
   in both directions. Quantization has no detectable effect.
@@ -334,6 +343,107 @@ The FP32-INT8 gap stays small even on this out-of-distribution dataset — reinf
 Phase 2's finding that quantization's cost is minor and consistent, not something that
 compounds specifically under distribution shift.
 
+## Phase 4: quantization-aware training (QAT)
+
+A third quantization variant alongside FP32 and Phase 2's post-training static
+quantization (PTQ): fine-tuned for 3 epochs (Adam, lr=1e-4) from the same converged
+FP32 seed-42 checkpoint, using PyTorch's eager-mode QAT (fake-quantization observers
+during training, backend `qnnpack` — the only quantized engine available on Apple
+Silicon; `fbgemm` is x86-only). Unlike PTQ, which needs no additional training, QAT's
+best-epoch checkpoint (selected by validation macro-F1) is confounded with those 3 extra
+fine-tuning epochs — **every comparison below is FP32/PTQ vs. "3-more-epochs-of-
+training-plus-quantization-awareness," not vs. quantization-awareness alone.** This
+matters concretely: the *prepared* (pre-`convert()`, fake-quantized) QAT model stays
+fully differentiable throughout training via a straight-through estimator, which is
+exactly the "quantization-aware differentiable surrogate" the Threat Models section
+identifies as needed for a genuine INT8 white-box attack — see below.
+
+### Clean accuracy: QAT helps the small model, hurts the large one
+
+| Architecture | FP32 | PTQ INT8 | QAT INT8 |
+|---|---|---|---|
+| Baseline CNN | 91.83% | 91.76% | **94.98%** |
+| MobileNetV2 | 97.20% | 96.59% | 95.33% |
+
+Baseline CNN's accuracy *improved* under QAT (+3.15pp over FP32) — plausibly the extra
+training epochs, fake-quant noise acting as a mild regularizer, or both; this project's
+3-epoch, single-run, single-seed setup can't separate those. MobileNetV2 instead *lost*
+accuracy under QAT (-1.87pp vs. FP32, -1.26pp vs. PTQ) despite the same extra epochs —
+the larger model's fine-tuning may have started overfitting before its best-validation
+checkpoint (epoch 0 of 3, per training logs), rather than benefiting from further
+adaptation.
+
+### Corruption robustness: QAT improves every corruption type for the baseline CNN
+
+See `qat_corruption_comparison.png`.
+
+| Corruption (severity 4) | Baseline CNN FP32 | PTQ | QAT | MobileNetV2 FP32 | PTQ | QAT |
+|---|---|---|---|---|---|---|
+| Blur | 68.2% | 68.0% | **73.2%** | 85.1% | 79.6% | 78.2% |
+| Motion blur | 44.6% | 44.1% | **52.5%** | 66.8% | 60.9% | 58.9% |
+| Rotation | 46.2% | 46.8% | 46.2% | 72.9% | 71.8% | **74.7%** |
+| Perspective | 49.8% | 49.6% | **63.6%** | 77.2% | 75.7% | 73.6% |
+| Brightness/contrast | 41.0% | 41.3% | **47.6%** | 74.8% | 65.7% | 64.6% |
+| JPEG compression | 62.4% | 62.2% | **67.7%** | 72.0% | 71.0% | 69.3% |
+| Fog | 46.5% | 46.1% | **53.6%** | 87.0% | 83.4% | 82.6% |
+| Rain | 26.6% | 26.5% | **37.7%** | 31.1% | 30.6% | 29.7% |
+| Shadow | 72.8% | 73.5% | **77.8%** | 64.6% | 62.7% | 61.3% |
+| Noise | 7.5% | 7.5% | 11.5% | 9.7% | 10.0% | 11.0% |
+
+For the baseline CNN, QAT beats *both* FP32 and PTQ on **every single corruption type**
+at severity 4 — not a cherry-picked result. For MobileNetV2, QAT is roughly flat-to-worse
+relative to PTQ on 8 of 10 corruptions (rotation and noise are the exceptions), meaning
+QAT does not recover the corruption-robustness cost Phase 2 found for this architecture,
+and mildly extends it on several types (blur, motion blur, shadow).
+
+### Adversarial robustness: a genuine INT8 white-box result, at last
+
+See `qat_adversarial_comparison.png`. Two new numbers close the Threat Models gap: PGD
+computed directly against the differentiable QAT surrogate (**QAT-INT8 white-box** — a
+true white-box attack on a real quantized-model stand-in, not a transfer attack), and
+FP32-crafted examples transferred to the converted QAT model (**FP32→QAT-INT8
+transfer**, directly comparable to Phase 2's FP32→PTQ-INT8 transfer).
+
+| Architecture | Threat model | eps=1/255 | eps=2/255 | eps=4/255 | eps=8/255 |
+|---|---|---|---|---|---|
+| Baseline CNN | FP32 white-box | 48.3% | 78.2% | 97.2% | 100.0% |
+| Baseline CNN | PTQ-INT8 transfer | 46.7% | 77.7% | 97.1% | 100.0% |
+| Baseline CNN | **QAT-INT8 white-box** | **38.9%** | **71.7%** | **94.2%** | 99.9% |
+| Baseline CNN | FP32→QAT-INT8 transfer | 23.9% | 56.6% | 86.2% | 99.3% |
+| MobileNetV2 | FP32 white-box | 84.6% | 93.9% | 98.0% | 99.7% |
+| MobileNetV2 | PTQ-INT8 transfer | 77.0% | 92.7% | 97.7% | 99.7% |
+| MobileNetV2 | QAT-INT8 white-box | 77.5% | 93.7% | 98.5% | 99.8% |
+| MobileNetV2 | FP32→QAT-INT8 transfer | 49.0% | 84.4% | 95.9% | 99.3% |
+
+For the baseline CNN, the QAT-INT8 white-box attack succeeds measurably *less* often
+than either FP32 white-box or PTQ-INT8 transfer at every epsilon (e.g. -9.4pp at
+eps=1/255) — a real robustness improvement under a genuine white-box attack, not just
+"transfer doesn't find it." For MobileNetV2, QAT-INT8 white-box tracks FP32 white-box
+closely (within 1-2pp), neither clearly better nor worse. This mirrors the corruption
+result above and is consistent with the same explanation: whatever QAT changed for the
+baseline CNN (more training, regularization, or genuine quantization-awareness) doesn't
+transfer to MobileNetV2's fine-tuning regime. As with clean accuracy, this can't be
+attributed to quantization-awareness alone given the training confound.
+
+### Deployment cost: not comparable to Phase 2's numbers, by construction
+
+QAT-INT8 runs as real PyTorch quantized ops (`qnnpack` backend, CPU), benchmarked in
+PyTorch directly — not ONNX Runtime, unlike Phase 2's PTQ numbers. The two latency/size
+results are **not cross-comparable**; only FP32-vs-QAT-INT8 *within this benchmark* means
+anything.
+
+| Architecture | FP32 latency | QAT INT8 latency | Speedup | FP32 size | QAT INT8 size | Shrink |
+|---|---|---|---|---|---|---|
+| Baseline CNN | 1.77ms | 1.55ms | 1.14x | 583.4 KB | 151.8 KB | 3.84x |
+| MobileNetV2 | 20.23ms | 3.51ms | 5.77x | 9138.0 KB | 2344.2 KB | 3.90x |
+
+Model-size shrink (~3.8-3.9x) is close to Phase 2's ONNX Runtime numbers, as expected —
+size depends on weight precision, not runtime. Latency speedup is not: PyTorch's
+quantized-CPU kernels apparently have more fixed per-call overhead than ONNX Runtime for
+a model as small as the baseline CNN (1.14x vs. Phase 2's 2.22x), but scale far better
+for MobileNetV2 (5.77x vs. 2.08x) — a runtime-implementation difference, not a
+quantization-technique one.
+
 ## Conclusion
 
 For this task, INT8 quantization delivers its real-time deployment benefits (~2x latency,
@@ -355,6 +465,15 @@ adversarial robustness under FGSM, and — by a wide margin — generalization t
 never seen the likes of. Given that the whole point of an autonomous traffic-sign system
 is operating on signs the training set didn't anticipate, that last property arguably
 matters more than any of the individually-tested robustness axes.
+
+Phase 4 adds a genuine INT8 white-box result and a third quantization variant, and the
+same architecture-matters theme holds: QAT is a clear win for the baseline CNN (better
+accuracy, better corruption robustness on every type tested, and a real reduction in
+white-box adversarial success) but does not rescue MobileNetV2's PTQ corruption cost and
+leaves its adversarial robustness roughly unchanged. Whether that's because
+quantization-awareness itself helps small from-scratch models more, or simply because 3
+epochs of extra fine-tuning helps a small model more than a model already fine-tuned from
+ImageNet, this project's single-run setup can't distinguish — see Limitations.
 
 ## Limitations
 
@@ -396,3 +515,5 @@ All in `reports/`:
 - `blackbox_transfer.png` — black-box cross-architecture transfer vs. white-box PGD
 - `corruption_severity4_ci.png` — multi-seed FP32 vs. INT8 severity-4 accuracy, 95% CIs
 - `calibration_ablation.png` — clean accuracy and blur-severity-4 accuracy vs. calibration size
+- `qat_corruption_comparison.png` — FP32 vs. PTQ vs. QAT, severity-4 accuracy, all 10 corruption types
+- `qat_adversarial_comparison.png` — PGD success across all four adversarial threat models
