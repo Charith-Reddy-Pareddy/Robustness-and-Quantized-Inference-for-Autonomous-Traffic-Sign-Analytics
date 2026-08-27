@@ -24,7 +24,7 @@ on one axis (corruption, not adversarial).
 
 ## Threat models
 
-The adversarial evaluation in this report covers three threat models. The headline
+The adversarial evaluation in this report covers four threat models. The headline
 "quantization does not increase adversarial vulnerability" claim only holds for the
 second one:
 
@@ -41,6 +41,12 @@ second one:
    FP32 architecture, evaluated against the *other*, independently-trained FP32
    architecture — no shared weights or structure between source and target. See
    `blackbox_transfer.png` and the table below.
+4. **QAT-INT8 white-box.** FGSM/PGD computed directly against the *prepared* (fake-quant,
+   pre-`convert()`) QAT model's own gradients — a genuine white-box attack on a real
+   quantized-model surrogate, not a transfer attack. See Phase 4 below. This finally
+   answers the question threat model 2 couldn't: does an INT8-aware model have its own
+   nearby adversarial examples a transfer attack might miss? For the baseline CNN,
+   apparently fewer than FP32 has; for MobileNetV2, about the same number.
 
 **Result: cross-architecture transfer is dramatically weaker than same-architecture
 transfer**, confirming that threat model 2's high transfer-success rates are an artifact
@@ -61,22 +67,19 @@ threat model 2 a weak test of "does quantization help or hurt adversarial robust
 same-architecture transfer success mostly reflects shared architecture, not anything
 specific to quantization.
 
-Still not tested, and therefore not something this report's results support:
+Not covered: an independent black-box source model attacking the *QAT* model
+specifically (only the FP32-vs-FP32 cross-architecture case above was tested) — a
+plausible follow-up, not attempted here.
 
-- **INT8 white-box.** Requires a differentiable path through the quantized graph (e.g. a
-  quantization-aware surrogate that fake-quantizes in the forward pass but keeps
-  gradients flowing) that this project doesn't build. Without it, there's no way to know
-  whether the INT8 model has its *own* nearby adversarial examples that a transfer attack
-  simply doesn't find.
-
-So the precise, defensible version of this report's adversarial finding is: **FP32-crafted
-adversarial examples transfer to the INT8 model at success rates no higher than white-box
-attacks against FP32 itself — but this transfer success is driven mainly by the two
-models sharing an architecture and weights, as shown by how much lower cross-architecture
-transfer success is.** That's still a useful result — it rules out quantization making a
-deployed model an *easier* transfer target than genuine black-box attacks would already
-make it — but it is not evidence that INT8 inference is intrinsically more adversarially
-robust than FP32.
+So the precise, defensible version of this report's PTQ adversarial finding is:
+**FP32-crafted adversarial examples transfer to the PTQ-INT8 model at success rates no
+higher than white-box attacks against FP32 itself — but this transfer success is driven
+mainly by the two models sharing an architecture and weights, as shown by how much lower
+cross-architecture transfer success is.** That's still a useful result — it rules out
+quantization making a deployed model an *easier* transfer target than genuine black-box
+attacks would already make it — but on its own it is not evidence that INT8 inference is
+intrinsically more adversarially robust than FP32. Phase 4's QAT white-box result is
+closer to that stronger claim, with an important caveat of its own — see below.
 
 ## Dataset and methodology
 
@@ -229,8 +232,7 @@ exceptions (MobileNetV2 at eps=4/255 and eps=8/255, where transfer success is +0
 As noted in
 [Threat models](#threat-models), this speaks to transferability, not to how the INT8
 model would fare against an attack computed directly against its own decision surface —
-that would require a differentiable quantized (or QAT) surrogate, which this project
-doesn't build.
+see Phase 4 for that result via a QAT surrogate.
 
 **Statistical confirmation (5 seeds, PGD only).** Re-running PGD white-box and PGD
 transfer across all 5 seeds and bootstrapping the paired (transfer - white-box) delta
@@ -356,10 +358,11 @@ matters more than any of the individually-tested robustness axes.
 
 ## Limitations
 
-- The adversarial-robustness finding covers FP32-white-box, FP32→INT8-transfer, and
-  black-box cross-architecture transfer (see [Threat models](#threat-models)) — it does
-  not establish that the INT8 model is intrinsically more adversarially robust, which
-  would require a differentiable quantized surrogate (true INT8 white-box).
+- The adversarial-robustness finding covers FP32-white-box, FP32→PTQ-INT8-transfer,
+  black-box cross-architecture transfer, and (Phase 4) QAT-INT8 white-box (see
+  [Threat models](#threat-models)) — but the QAT white-box result is confounded with 3
+  extra fine-tuning epochs PTQ never received (see Phase 4's caveat), so it isn't a clean
+  isolation of "quantization-awareness" from "more training."
 - FGSM/PGD were hand-implemented rather than via Foolbox/ART, per the spec's suggested
   tools — standard formulations, but not independently cross-checked against a reference
   library implementation.
@@ -368,8 +371,11 @@ matters more than any of the individually-tested robustness axes.
   discussion in Phase 1), and running both attacks across 5 seeds would roughly double an
   already-expensive full-test-set sweep for limited additional statistical value.
 - The calibration-size ablation and multi-seed statistical checks were only run for static
-  PTQ INT8, not for a QAT variant (not yet implemented) or for the black-box
-  cross-architecture transfer attack.
+  PTQ INT8 — QAT (Phase 4) and the black-box cross-architecture transfer attack are each
+  single-seed (42) only.
+- QAT was fine-tuned for a fixed 3 epochs at a single learning rate (1e-4), chosen without
+  a hyperparameter sweep; a different schedule could change how much of Phase 4's
+  clean-accuracy and robustness shift is attributable to quantization-awareness itself.
 - The Mapillary generalization check only covers the 23 GTSRB classes with an
   unambiguous semantic match, excludes all numeric speed-limit classes entirely, and its
   worst-performing per-class results are plausibly confounded by cross-standard
