@@ -53,12 +53,21 @@ def test_higher_severity_brightness_contrast_darkens():
     assert high.mean() < low.mean()
 
 
-def test_rotation_changes_pixels_by_increasing_amount():
+def test_rotation_exposes_more_fill_border_at_higher_severity():
+    """On a random-noise image, mean pixel diff vs. the original is dominated by
+    content misalignment rather than rotation angle (any rotation already maximally
+    scrambles uncorrelated pixels), so this checks something more direct instead: a
+    bigger rotation angle crops in more of the (128,128,128) fill border -- the same
+    fix applied to the perspective-warp test below, for the same underlying reason."""
     img = _sample_image()
-    arr = np.asarray(img).astype(np.float32)
-    small = np.asarray(rotation(1)(img)).astype(np.float32)
-    large = np.asarray(rotation(4)(img)).astype(np.float32)
-    assert np.abs(large - arr).mean() > np.abs(small - arr).mean()
+    fill = np.array([128, 128, 128])
+
+    def fill_fraction(out_arr):
+        return np.all(out_arr == fill, axis=-1).mean()
+
+    small = np.asarray(rotation(1)(img))
+    large = np.asarray(rotation(4)(img))
+    assert fill_fraction(large) > fill_fraction(small)
 
 
 def test_higher_severity_jpeg_compression_degrades_more():
