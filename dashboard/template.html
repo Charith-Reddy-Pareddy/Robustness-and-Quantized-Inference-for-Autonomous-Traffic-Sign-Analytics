@@ -459,16 +459,41 @@
     <p class="section-note">
       A third variant alongside FP32 and post-training static quantization (PTQ):
       fine-tuned with fake-quantization for 3 epochs from the converged FP32 checkpoint.
-      <span class="pending">evaluation in progress</span>
-    </p>
-    <div class="panel" style="padding: 24px 18px; text-align: center; color: var(--ink-muted); font-size: 13px;">
-      QAT training is complete for both architectures. Full corruption and adversarial
-      re-evaluation (including a true INT8 white-box attack via QAT's differentiable
-      fake-quant surrogate) is still running &mdash; this section will update once it lands.
-      Early clean-accuracy read: baseline CNN improved to 95.0% (from 91.8% FP32/91.8%
-      PTQ) after 3 extra fine-tuning epochs; MobileNetV2 dropped to 95.3% (from 97.2%
-      FP32/96.6% PTQ) &mdash; QAT numbers are confounded with those extra epochs, which
-      PTQ never received.
+      Its differentiable fake-quant surrogate also enables a genuine INT8
+      <strong>white-box</strong> adversarial attack, closing a gap the PTQ-only transfer
+      attacks in &sect;3 couldn't. <strong>Caveat:</strong> QAT received 3 fine-tuning
+      epochs PTQ never did, so every comparison below is confounded with that extra
+      training, not a clean isolation of quantization-awareness alone.
+    </div>
+    <div class="grid-2">
+      <div class="panel">
+        <h3>Clean accuracy: helps the small model, hurts the large one</h3>
+        <div class="panel-sub">FP32 vs. PTQ vs. QAT</div>
+        <div id="chart-qat-clean" class="chart-wrap"></div>
+      </div>
+      <div class="panel">
+        <h3>Corruption at severity 4 (blur, brightness/contrast)</h3>
+        <div class="panel-sub">QAT beats FP32 and PTQ on every corruption type for the baseline CNN</div>
+        <div id="chart-qat-corruption" class="chart-wrap"></div>
+      </div>
+      <div class="panel">
+        <h3>PGD threat models &mdash; Baseline CNN</h3>
+        <div class="panel-sub">QAT white-box succeeds less than FP32/PTQ at every epsilon</div>
+        <div id="chart-qat-adv-baseline" class="chart-wrap"></div>
+      </div>
+      <div class="panel">
+        <h3>PGD threat models &mdash; MobileNetV2</h3>
+        <div class="panel-sub">QAT white-box tracks FP32 white-box closely</div>
+        <div id="chart-qat-adv-mobilenet" class="chart-wrap"></div>
+      </div>
+    </div>
+    <div class="callout">
+      QAT is a clear win for the baseline CNN on every axis tested (accuracy, all 10
+      corruption types, adversarial white-box) but leaves MobileNetV2 roughly unchanged
+      or slightly worse &mdash; the same architecture-dependent pattern seen throughout
+      this project, though here it may simply reflect that 3 extra epochs help an
+      under-trained small model more than an already fine-tuned one. Full write-up:
+      <a href="https://github.com/Charith-Reddy-Pareddy/Robustness-and-Quantized-Inference-for-Autonomous-Traffic-Sign-Analytics/blob/main/reports/ROBUSTNESS_REPORT.md#phase-4-quantization-aware-training-qat">Phase 4</a>.
     </div>
   </section>
 
@@ -694,7 +719,7 @@ function barChart(containerId, opts) {
 
 /* ================= Build charts from DATA ================= */
 
-const S_FP32 = tok('--s-fp32'), S_PTQ = tok('--s-ptq'), S_BB = tok('--s-blackbox');
+const S_FP32 = tok('--s-fp32'), S_PTQ = tok('--s-ptq'), S_BB = tok('--s-blackbox'), S_QAT = tok('--s-qat');
 const ARCH_A = tok('--s-fp32'), ARCH_B = tok('--s-ptq');
 
 // 01 Architecture comparison (accuracy, 5 seeds, mean)
@@ -774,4 +799,48 @@ barChart('chart-size', {
   yMax: 9000, yTicks: [0, 2250, 4500, 6750, 9000], yTickFormat: t => Math.round(t) + 'KB',
   tooltipFormat: v => v.toFixed(0) + ' KB',
 });
+
+// 06 QAT
+barChart('chart-qat-clean', {
+  groups: ['Baseline CNN', 'MobileNetV2'],
+  series: [
+    { name: 'FP32', color: S_FP32, values: [DATA.qat_clean.baseline_cnn.fp32, DATA.qat_clean.mobilenet_transfer.fp32] },
+    { name: 'PTQ', color: S_PTQ, values: [DATA.qat_clean.baseline_cnn.ptq, DATA.qat_clean.mobilenet_transfer.ptq] },
+    { name: 'QAT', color: S_QAT, values: [DATA.qat_clean.baseline_cnn.qat, DATA.qat_clean.mobilenet_transfer.qat] },
+  ],
+  yMax: 1, yTicks: [0, 0.25, 0.5, 0.75, 1], yTickFormat: t => Math.round(t*100)+'%',
+  tooltipFormat: v => fmtPct(v, 1),
+});
+
+barChart('chart-qat-corruption', {
+  groups: ['Baseline: blur', 'Baseline: b/c', 'MobileNet: blur', 'MobileNet: b/c'],
+  series: [
+    { name: 'FP32', color: S_FP32, values: [
+      DATA.qat_corruption_sev4.baseline_cnn.blur.fp32, DATA.qat_corruption_sev4.baseline_cnn.brightness_contrast.fp32,
+      DATA.qat_corruption_sev4.mobilenet_transfer.blur.fp32, DATA.qat_corruption_sev4.mobilenet_transfer.brightness_contrast.fp32,
+    ] },
+    { name: 'PTQ', color: S_PTQ, values: [
+      DATA.qat_corruption_sev4.baseline_cnn.blur.ptq, DATA.qat_corruption_sev4.baseline_cnn.brightness_contrast.ptq,
+      DATA.qat_corruption_sev4.mobilenet_transfer.blur.ptq, DATA.qat_corruption_sev4.mobilenet_transfer.brightness_contrast.ptq,
+    ] },
+    { name: 'QAT', color: S_QAT, values: [
+      DATA.qat_corruption_sev4.baseline_cnn.blur.qat, DATA.qat_corruption_sev4.baseline_cnn.brightness_contrast.qat,
+      DATA.qat_corruption_sev4.mobilenet_transfer.blur.qat, DATA.qat_corruption_sev4.mobilenet_transfer.brightness_contrast.qat,
+    ] },
+  ],
+  yMax: 1, yTicks: [0, 0.25, 0.5, 0.75, 1], yTickFormat: t => Math.round(t*100)+'%',
+  tooltipFormat: v => fmtPct(v, 1),
+});
+
+function qatAdvSeries(arch) {
+  const d = DATA.qat_adversarial[arch];
+  return [
+    { name: 'FP32 white-box', color: S_FP32, values: d.whitebox_pgd },
+    { name: 'PTQ transfer', color: S_PTQ, values: d.ptq_transfer_pgd },
+    { name: 'QAT white-box', color: S_QAT, values: d.qat_whitebox_pgd },
+    { name: 'FP32->QAT transfer', color: S_BB, values: d.qat_transfer_pgd },
+  ];
+}
+lineChart('chart-qat-adv-baseline', { xValues: epsX, series: qatAdvSeries('baseline_cnn'), xTickFormat: v => v + '/255' });
+lineChart('chart-qat-adv-mobilenet', { xValues: epsX, series: qatAdvSeries('mobilenet_transfer'), xTickFormat: v => v + '/255' });
 </script>

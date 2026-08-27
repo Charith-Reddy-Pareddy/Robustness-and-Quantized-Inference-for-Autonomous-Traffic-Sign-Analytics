@@ -467,16 +467,41 @@
     <p class="section-note">
       A third variant alongside FP32 and post-training static quantization (PTQ):
       fine-tuned with fake-quantization for 3 epochs from the converged FP32 checkpoint.
-      <span class="pending">evaluation in progress</span>
-    </p>
-    <div class="panel" style="padding: 24px 18px; text-align: center; color: var(--ink-muted); font-size: 13px;">
-      QAT training is complete for both architectures. Full corruption and adversarial
-      re-evaluation (including a true INT8 white-box attack via QAT's differentiable
-      fake-quant surrogate) is still running &mdash; this section will update once it lands.
-      Early clean-accuracy read: baseline CNN improved to 95.0% (from 91.8% FP32/91.8%
-      PTQ) after 3 extra fine-tuning epochs; MobileNetV2 dropped to 95.3% (from 97.2%
-      FP32/96.6% PTQ) &mdash; QAT numbers are confounded with those extra epochs, which
-      PTQ never received.
+      Its differentiable fake-quant surrogate also enables a genuine INT8
+      <strong>white-box</strong> adversarial attack, closing a gap the PTQ-only transfer
+      attacks in &sect;3 couldn't. <strong>Caveat:</strong> QAT received 3 fine-tuning
+      epochs PTQ never did, so every comparison below is confounded with that extra
+      training, not a clean isolation of quantization-awareness alone.
+    </div>
+    <div class="grid-2">
+      <div class="panel">
+        <h3>Clean accuracy: helps the small model, hurts the large one</h3>
+        <div class="panel-sub">FP32 vs. PTQ vs. QAT</div>
+        <div id="chart-qat-clean" class="chart-wrap"></div>
+      </div>
+      <div class="panel">
+        <h3>Corruption at severity 4 (blur, brightness/contrast)</h3>
+        <div class="panel-sub">QAT beats FP32 and PTQ on every corruption type for the baseline CNN</div>
+        <div id="chart-qat-corruption" class="chart-wrap"></div>
+      </div>
+      <div class="panel">
+        <h3>PGD threat models &mdash; Baseline CNN</h3>
+        <div class="panel-sub">QAT white-box succeeds less than FP32/PTQ at every epsilon</div>
+        <div id="chart-qat-adv-baseline" class="chart-wrap"></div>
+      </div>
+      <div class="panel">
+        <h3>PGD threat models &mdash; MobileNetV2</h3>
+        <div class="panel-sub">QAT white-box tracks FP32 white-box closely</div>
+        <div id="chart-qat-adv-mobilenet" class="chart-wrap"></div>
+      </div>
+    </div>
+    <div class="callout">
+      QAT is a clear win for the baseline CNN on every axis tested (accuracy, all 10
+      corruption types, adversarial white-box) but leaves MobileNetV2 roughly unchanged
+      or slightly worse &mdash; the same architecture-dependent pattern seen throughout
+      this project, though here it may simply reflect that 3 extra epochs help an
+      under-trained small model more than an already fine-tuned one. Full write-up:
+      <a href="https://github.com/Charith-Reddy-Pareddy/Robustness-and-Quantized-Inference-for-Autonomous-Traffic-Sign-Analytics/blob/main/reports/ROBUSTNESS_REPORT.md#phase-4-quantization-aware-training-qat">Phase 4</a>.
     </div>
   </section>
 
@@ -508,7 +533,7 @@
 <div class="tooltip" id="tooltip"></div>
 
 <script>
-const DATA = {"multi_seed": {"baseline_cnn": {"per_seed": [{"seed": 42, "accuracy": 0.918289786223278, "macro_f1": 0.8608313608017982}, {"seed": 123, "accuracy": 0.9375296912114014, "macro_f1": 0.9026414717626152}, {"seed": 2024, "accuracy": 0.9235154394299288, "macro_f1": 0.8970931574279547}, {"seed": 7, "accuracy": 0.9463182897862232, "macro_f1": 0.9102264912764912}, {"seed": 999, "accuracy": 0.9314330958036421, "macro_f1": 0.9183588640140236}], "accuracy_mean": 0.9314172604908947, "accuracy_std": 0.009941550088963268, "macro_f1_mean": 0.8978302690565766, "macro_f1_std": 0.019837841381206638}, "mobilenet_transfer": {"per_seed": [{"seed": 42, "accuracy": 0.9719714964370546, "macro_f1": 0.9541175133220501}, {"seed": 123, "accuracy": 0.9683293745051464, "macro_f1": 0.9468187004749955}, {"seed": 2024, "accuracy": 0.9627870150435471, "macro_f1": 0.9399540881105832}, {"seed": 7, "accuracy": 0.9598574821852731, "macro_f1": 0.9354124859372294}, {"seed": 999, "accuracy": 0.9711005542359462, "macro_f1": 0.9535178202436997}], "accuracy_mean": 0.9668091844813935, "accuracy_std": 0.004730334208209821, "macro_f1_mean": 0.9459641216177115, "macro_f1_std": 0.007371892328708797}}, "clean": {"baseline_cnn": {"fp32": {"accuracy": 0.918289786223278, "macro_f1": 0.8608313608017982}, "int8": {"accuracy": 0.9175771971496437, "macro_f1": 0.8613622386355776}}, "mobilenet_transfer": {"fp32": {"accuracy": 0.9719714964370546, "macro_f1": 0.9541175133220501}, "int8": {"accuracy": 0.9658749010292953, "macro_f1": 0.9428987905264377}}}, "corruption": {"baseline_cnn": {"blur": {"fp32": [{"severity": 1, "accuracy": 0.9188440221694378}, {"severity": 2, "accuracy": 0.9167062549485352}, {"severity": 3, "accuracy": 0.8651623119556612}, {"severity": 4, "accuracy": 0.682264449722882}], "int8": [{"severity": 1, "accuracy": 0.917735550277118}, {"severity": 2, "accuracy": 0.9152019002375297}, {"severity": 3, "accuracy": 0.8647664291369754}, {"severity": 4, "accuracy": 0.6796516231195566}]}, "noise": {"fp32": [{"severity": 1, "accuracy": 0.6463974663499604}, {"severity": 2, "accuracy": 0.3215360253365004}, {"severity": 3, "accuracy": 0.1557403008709422}, {"severity": 4, "accuracy": 0.07537608867775139}], "int8": [{"severity": 1, "accuracy": 0.6467141726049089}, {"severity": 2, "accuracy": 0.32185273159144895}, {"severity": 3, "accuracy": 0.15708630245447347}, {"severity": 4, "accuracy": 0.07505938242280286}]}, "rotation": {"fp32": [{"severity": 1, "accuracy": 0.902375296912114}, {"severity": 2, "accuracy": 0.8838479809976247}, {"severity": 3, "accuracy": 0.7752177355502771}, {"severity": 4, "accuracy": 0.4620744259699129}], "int8": [{"severity": 1, "accuracy": 0.9026920031670626}, {"severity": 2, "accuracy": 0.8838479809976247}, {"severity": 3, "accuracy": 0.7800475059382422}, {"severity": 4, "accuracy": 0.46769596199524943}]}, "brightness_contrast": {"fp32": [{"severity": 1, "accuracy": 0.8991290577988915}, {"severity": 2, "accuracy": 0.8288994457640538}, {"severity": 3, "accuracy": 0.6758511480601742}, {"severity": 4, "accuracy": 0.4103721298495645}], "int8": [{"severity": 1, "accuracy": 0.8979414093428345}, {"severity": 2, "accuracy": 0.8272367379255741}, {"severity": 3, "accuracy": 0.6783056215360254}, {"severity": 4, "accuracy": 0.4133808392715756}]}}, "mobilenet_transfer": {"blur": {"fp32": [{"severity": 1, "accuracy": 0.9744259699129058}, {"severity": 2, "accuracy": 0.9718131433095804}, {"severity": 3, "accuracy": 0.950910530482977}, {"severity": 4, "accuracy": 0.8514647664291369}], "int8": [{"severity": 1, "accuracy": 0.9680126682501979}, {"severity": 2, "accuracy": 0.9657957244655582}, {"severity": 3, "accuracy": 0.9315914489311163}, {"severity": 4, "accuracy": 0.7956452889944576}]}, "noise": {"fp32": [{"severity": 1, "accuracy": 0.6250197941409343}, {"severity": 2, "accuracy": 0.2977830562153603}, {"severity": 3, "accuracy": 0.16183689627870151}, {"severity": 4, "accuracy": 0.10095011876484561}], "int8": [{"severity": 1, "accuracy": 0.6171021377672209}, {"severity": 2, "accuracy": 0.29833729216152016}, {"severity": 3, "accuracy": 0.1636579572446556}, {"severity": 4, "accuracy": 0.0992874109263658}]}, "rotation": {"fp32": [{"severity": 1, "accuracy": 0.9648456057007125}, {"severity": 2, "accuracy": 0.9468725257323832}, {"severity": 3, "accuracy": 0.8877276326207443}, {"severity": 4, "accuracy": 0.7292953285827395}], "int8": [{"severity": 1, "accuracy": 0.9593824228028504}, {"severity": 2, "accuracy": 0.9381631037212985}, {"severity": 3, "accuracy": 0.8720506730007918}, {"severity": 4, "accuracy": 0.7175771971496437}]}, "brightness_contrast": {"fp32": [{"severity": 1, "accuracy": 0.9707838479809976}, {"severity": 2, "accuracy": 0.9578780680918448}, {"severity": 3, "accuracy": 0.9071258907363421}, {"severity": 4, "accuracy": 0.7475059382422803}], "int8": [{"severity": 1, "accuracy": 0.9596991290577989}, {"severity": 2, "accuracy": 0.9392715756136184}, {"severity": 3, "accuracy": 0.8577197149643705}, {"severity": 4, "accuracy": 0.656848772763262}]}}}, "adversarial": {"baseline_cnn": {"whitebox_pgd": [{"epsilon": 0.00392156862745098, "success": 0.48258320400068977}, {"epsilon": 0.00784313725490196, "success": 0.7822900500086222}, {"epsilon": 0.01568627450980392, "success": 0.9719779272288326}, {"epsilon": 0.03137254901960784, "success": 1.0}], "transfer_pgd": [{"epsilon": 0.00392156862745098, "success": 0.46725342997670205}, {"epsilon": 0.00784313725490196, "success": 0.776512209854172}, {"epsilon": 0.01568627450980392, "success": 0.9708344119423591}, {"epsilon": 0.03137254901960784, "success": 1.0}]}, "mobilenet_transfer": {"whitebox_pgd": [{"epsilon": 0.00392156862745098, "success": 0.8458781362007168}, {"epsilon": 0.00784313725490196, "success": 0.9393939393939394}, {"epsilon": 0.01568627450980392, "success": 0.9802867383512545}, {"epsilon": 0.03137254901960784, "success": 0.997148908439231}], "transfer_pgd": [{"epsilon": 0.00392156862745098, "success": 0.7699811459955734}, {"epsilon": 0.00784313725490196, "success": 0.9267153045331584}, {"epsilon": 0.01568627450980392, "success": 0.9771292728912206}, {"epsilon": 0.03137254901960784, "success": 0.9968030166407083}]}}, "blackbox": {"baseline_cnn_to_mobilenet_transfer": {"pgd": [{"epsilon": 0.00392156862745098, "success": 0.009449332029977192}, {"epsilon": 0.00784313725490196, "success": 0.02761485826001955}, {"epsilon": 0.01568627450980392, "success": 0.08479960899315737}, {"epsilon": 0.03137254901960784, "success": 0.23582600195503423}]}, "mobilenet_transfer_to_baseline_cnn": {"pgd": [{"epsilon": 0.00392156862745098, "success": 0.004828418692878082}, {"epsilon": 0.00784313725490196, "success": 0.008794619762027936}, {"epsilon": 0.01568627450980392, "success": 0.022158992929815484}, {"epsilon": 0.03137254901960784, "success": 0.08673909294705984}]}}, "mapillary": {"baseline_cnn": {"gtsrb": 0.9230337078651686, "fp32": 0.4747826086956522, "int8": 0.47130434782608693}, "mobilenet_transfer": {"gtsrb": 0.9737827715355806, "fp32": 0.6892753623188406, "int8": 0.6828985507246377}}, "latency": {"baseline_cnn": {"fp32_ms": 2.3366002052716794, "int8_ms": 1.05074085528031, "fp32_kb": 569.970703125, "int8_kb": 162.8564453125}, "mobilenet_transfer": {"fp32_ms": 3.4198989050855744, "int8_ms": 1.64641625029617, "fp32_kb": 8878.8115234375, "int8_kb": 2609.4443359375}}, "statistics_example": {"fp32": {"n": 5, "mean": 0.7520506730007918, "std": 0.02878542349792, "ci_low": 0.7163088489703757, "ci_high": 0.7877924970312078}, "int8": {"n": 5, "mean": 0.6666983372921615, "std": 0.03654582114719388, "ci_low": 0.6213207068888971, "ci_high": 0.712075967695426}, "delta": {"n": 5, "mean_delta": -0.08535233570863025, "bootstrap_ci_low": -0.09326999208234363, "bootstrap_ci_high": -0.07743467933491688, "paired_t_pvalue": 5.249111215800601e-05, "cohens_dz": -8.182413617519577}}};
+const DATA = {"multi_seed": {"baseline_cnn": {"per_seed": [{"seed": 42, "accuracy": 0.918289786223278, "macro_f1": 0.8608313608017982}, {"seed": 123, "accuracy": 0.9375296912114014, "macro_f1": 0.9026414717626152}, {"seed": 2024, "accuracy": 0.9235154394299288, "macro_f1": 0.8970931574279547}, {"seed": 7, "accuracy": 0.9463182897862232, "macro_f1": 0.9102264912764912}, {"seed": 999, "accuracy": 0.9314330958036421, "macro_f1": 0.9183588640140236}], "accuracy_mean": 0.9314172604908947, "accuracy_std": 0.009941550088963268, "macro_f1_mean": 0.8978302690565766, "macro_f1_std": 0.019837841381206638}, "mobilenet_transfer": {"per_seed": [{"seed": 42, "accuracy": 0.9719714964370546, "macro_f1": 0.9541175133220501}, {"seed": 123, "accuracy": 0.9683293745051464, "macro_f1": 0.9468187004749955}, {"seed": 2024, "accuracy": 0.9627870150435471, "macro_f1": 0.9399540881105832}, {"seed": 7, "accuracy": 0.9598574821852731, "macro_f1": 0.9354124859372294}, {"seed": 999, "accuracy": 0.9711005542359462, "macro_f1": 0.9535178202436997}], "accuracy_mean": 0.9668091844813935, "accuracy_std": 0.004730334208209821, "macro_f1_mean": 0.9459641216177115, "macro_f1_std": 0.007371892328708797}}, "clean": {"baseline_cnn": {"fp32": {"accuracy": 0.918289786223278, "macro_f1": 0.8608313608017982}, "int8": {"accuracy": 0.9175771971496437, "macro_f1": 0.8613622386355776}}, "mobilenet_transfer": {"fp32": {"accuracy": 0.9719714964370546, "macro_f1": 0.9541175133220501}, "int8": {"accuracy": 0.9658749010292953, "macro_f1": 0.9428987905264377}}}, "corruption": {"baseline_cnn": {"blur": {"fp32": [{"severity": 1, "accuracy": 0.9188440221694378}, {"severity": 2, "accuracy": 0.9167062549485352}, {"severity": 3, "accuracy": 0.8651623119556612}, {"severity": 4, "accuracy": 0.682264449722882}], "int8": [{"severity": 1, "accuracy": 0.917735550277118}, {"severity": 2, "accuracy": 0.9152019002375297}, {"severity": 3, "accuracy": 0.8647664291369754}, {"severity": 4, "accuracy": 0.6796516231195566}]}, "noise": {"fp32": [{"severity": 1, "accuracy": 0.6463974663499604}, {"severity": 2, "accuracy": 0.3215360253365004}, {"severity": 3, "accuracy": 0.1557403008709422}, {"severity": 4, "accuracy": 0.07537608867775139}], "int8": [{"severity": 1, "accuracy": 0.6481393507521773}, {"severity": 2, "accuracy": 0.32288202692003165}, {"severity": 3, "accuracy": 0.15724465558194775}, {"severity": 4, "accuracy": 0.07537608867775139}]}, "rotation": {"fp32": [{"severity": 1, "accuracy": 0.902375296912114}, {"severity": 2, "accuracy": 0.8838479809976247}, {"severity": 3, "accuracy": 0.7752177355502771}, {"severity": 4, "accuracy": 0.4620744259699129}], "int8": [{"severity": 1, "accuracy": 0.9026920031670626}, {"severity": 2, "accuracy": 0.8838479809976247}, {"severity": 3, "accuracy": 0.7800475059382422}, {"severity": 4, "accuracy": 0.46769596199524943}]}, "brightness_contrast": {"fp32": [{"severity": 1, "accuracy": 0.8991290577988915}, {"severity": 2, "accuracy": 0.8288994457640538}, {"severity": 3, "accuracy": 0.6758511480601742}, {"severity": 4, "accuracy": 0.4103721298495645}], "int8": [{"severity": 1, "accuracy": 0.8979414093428345}, {"severity": 2, "accuracy": 0.8272367379255741}, {"severity": 3, "accuracy": 0.6783056215360254}, {"severity": 4, "accuracy": 0.4133808392715756}]}}, "mobilenet_transfer": {"blur": {"fp32": [{"severity": 1, "accuracy": 0.9744259699129058}, {"severity": 2, "accuracy": 0.9718131433095804}, {"severity": 3, "accuracy": 0.950910530482977}, {"severity": 4, "accuracy": 0.8514647664291369}], "int8": [{"severity": 1, "accuracy": 0.9680126682501979}, {"severity": 2, "accuracy": 0.9657957244655582}, {"severity": 3, "accuracy": 0.9315914489311163}, {"severity": 4, "accuracy": 0.7956452889944576}]}, "noise": {"fp32": [{"severity": 1, "accuracy": 0.6268408551068884}, {"severity": 2, "accuracy": 0.3019794140934283}, {"severity": 3, "accuracy": 0.16239113222486143}, {"severity": 4, "accuracy": 0.09683293745051465}], "int8": [{"severity": 1, "accuracy": 0.6188440221694379}, {"severity": 2, "accuracy": 0.2973871733966746}, {"severity": 3, "accuracy": 0.16152019002375298}, {"severity": 4, "accuracy": 0.1002375296912114}]}, "rotation": {"fp32": [{"severity": 1, "accuracy": 0.9648456057007125}, {"severity": 2, "accuracy": 0.9468725257323832}, {"severity": 3, "accuracy": 0.8877276326207443}, {"severity": 4, "accuracy": 0.7292953285827395}], "int8": [{"severity": 1, "accuracy": 0.9593824228028504}, {"severity": 2, "accuracy": 0.9381631037212985}, {"severity": 3, "accuracy": 0.8720506730007918}, {"severity": 4, "accuracy": 0.7175771971496437}]}, "brightness_contrast": {"fp32": [{"severity": 1, "accuracy": 0.9707838479809976}, {"severity": 2, "accuracy": 0.9578780680918448}, {"severity": 3, "accuracy": 0.9071258907363421}, {"severity": 4, "accuracy": 0.7475059382422803}], "int8": [{"severity": 1, "accuracy": 0.9596991290577989}, {"severity": 2, "accuracy": 0.9392715756136184}, {"severity": 3, "accuracy": 0.8577197149643705}, {"severity": 4, "accuracy": 0.656848772763262}]}}}, "adversarial": {"baseline_cnn": {"whitebox_pgd": [{"epsilon": 0.00392156862745098, "success": 0.48258320400068977}, {"epsilon": 0.00784313725490196, "success": 0.7822900500086222}, {"epsilon": 0.01568627450980392, "success": 0.9719779272288326}, {"epsilon": 0.03137254901960784, "success": 1.0}], "transfer_pgd": [{"epsilon": 0.00392156862745098, "success": 0.46725342997670205}, {"epsilon": 0.00784313725490196, "success": 0.776512209854172}, {"epsilon": 0.01568627450980392, "success": 0.9708344119423591}, {"epsilon": 0.03137254901960784, "success": 1.0}]}, "mobilenet_transfer": {"whitebox_pgd": [{"epsilon": 0.00392156862745098, "success": 0.8458781362007168}, {"epsilon": 0.00784313725490196, "success": 0.9393939393939394}, {"epsilon": 0.01568627450980392, "success": 0.9802867383512545}, {"epsilon": 0.03137254901960784, "success": 0.997148908439231}], "transfer_pgd": [{"epsilon": 0.00392156862745098, "success": 0.7699811459955734}, {"epsilon": 0.00784313725490196, "success": 0.9267153045331584}, {"epsilon": 0.01568627450980392, "success": 0.9771292728912206}, {"epsilon": 0.03137254901960784, "success": 0.9968030166407083}]}}, "blackbox": {"baseline_cnn_to_mobilenet_transfer": {"pgd": [{"epsilon": 0.00392156862745098, "success": 0.009449332029977192}, {"epsilon": 0.00784313725490196, "success": 0.02761485826001955}, {"epsilon": 0.01568627450980392, "success": 0.08479960899315737}, {"epsilon": 0.03137254901960784, "success": 0.23582600195503423}]}, "mobilenet_transfer_to_baseline_cnn": {"pgd": [{"epsilon": 0.00392156862745098, "success": 0.004828418692878082}, {"epsilon": 0.00784313725490196, "success": 0.008794619762027936}, {"epsilon": 0.01568627450980392, "success": 0.022158992929815484}, {"epsilon": 0.03137254901960784, "success": 0.08673909294705984}]}}, "mapillary": {"baseline_cnn": {"gtsrb": 0.9230337078651686, "fp32": 0.4747826086956522, "int8": 0.47130434782608693}, "mobilenet_transfer": {"gtsrb": 0.9737827715355806, "fp32": 0.6892753623188406, "int8": 0.6828985507246377}}, "latency": {"baseline_cnn": {"fp32_ms": 2.3366002052716794, "int8_ms": 1.05074085528031, "fp32_kb": 569.970703125, "int8_kb": 162.8564453125}, "mobilenet_transfer": {"fp32_ms": 3.4198989050855744, "int8_ms": 1.64641625029617, "fp32_kb": 8878.8115234375, "int8_kb": 2609.4443359375}}, "statistics_example": {"fp32": {"n": 5, "mean": 0.7520506730007918, "std": 0.02878542349792, "ci_low": 0.7163088489703757, "ci_high": 0.7877924970312078}, "int8": {"n": 5, "mean": 0.6666983372921615, "std": 0.03654582114719388, "ci_low": 0.6213207068888971, "ci_high": 0.712075967695426}, "delta": {"n": 5, "mean_delta": -0.08535233570863025, "bootstrap_ci_low": -0.09326999208234363, "bootstrap_ci_high": -0.07743467933491688, "paired_t_pvalue": 5.249111215800601e-05, "cohens_dz": -8.182413617519577}}, "qat_corruption_sev4": {"baseline_cnn": {"blur": {"fp32": 0.682264449722882, "ptq": 0.6796516231195566, "qat": 0.731987331749802}, "brightness_contrast": {"fp32": 0.4103721298495645, "ptq": 0.4133808392715756, "qat": 0.4760886777513856}}, "mobilenet_transfer": {"blur": {"fp32": 0.8514647664291369, "ptq": 0.7956452889944576, "qat": 0.7817102137767221}, "brightness_contrast": {"fp32": 0.7475059382422803, "ptq": 0.656848772763262, "qat": 0.6464766429136976}}}, "qat_adversarial": {"baseline_cnn": {"whitebox_pgd": [0.48258320400068977, 0.7822900500086222, 0.9719779272288326, 1.0], "ptq_transfer_pgd": [0.46725342997670205, 0.776512209854172, 0.9708344119423591, 1.0], "qat_whitebox_pgd": [0.3886113886113886, 0.7166416791604198, 0.9417839593570417, 0.9990012484394507], "qat_transfer_pgd": [0.2387462487495832, 0.5664388129376459, 0.8623707902634211, 0.9934978326108703]}, "mobilenet_transfer": {"whitebox_pgd": [0.8458781362007168, 0.9393939393939394, 0.9802867383512545, 0.997148908439231], "ptq_transfer_pgd": [0.7699811459955734, 0.9267153045331584, 0.9771292728912206, 0.9968030166407083], "qat_whitebox_pgd": [0.7751964763796528, 0.9366379310344828, 0.9852624321296216, 0.9978431541713398], "qat_transfer_pgd": [0.4902823920265781, 0.843936877076412, 0.959468438538206, 0.9933554817275747]}}, "qat_clean": {"baseline_cnn": {"fp32": 0.918289786223278, "ptq": 0.9175771971496437, "qat": 0.9498020585906571}, "mobilenet_transfer": {"fp32": 0.9719714964370546, "ptq": 0.9658749010292953, "qat": 0.953285827395091}}, "qat_latency": {"baseline_cnn": {"fp32_ms": 1.769776460569119, "qat_ms": 1.5531424752407474, "fp32_kb": 583.40625, "qat_kb": 151.8330078125}, "mobilenet_transfer": {"fp32_ms": 20.232116435363423, "qat_ms": 3.5049827449256554, "fp32_kb": 9138.0107421875, "qat_kb": 2344.1943359375}}};
 
 const css = getComputedStyle(document.documentElement);
 function tok(name) { return css.getPropertyValue(name).trim(); }
@@ -702,7 +727,7 @@ function barChart(containerId, opts) {
 
 /* ================= Build charts from DATA ================= */
 
-const S_FP32 = tok('--s-fp32'), S_PTQ = tok('--s-ptq'), S_BB = tok('--s-blackbox');
+const S_FP32 = tok('--s-fp32'), S_PTQ = tok('--s-ptq'), S_BB = tok('--s-blackbox'), S_QAT = tok('--s-qat');
 const ARCH_A = tok('--s-fp32'), ARCH_B = tok('--s-ptq');
 
 // 01 Architecture comparison (accuracy, 5 seeds, mean)
@@ -782,6 +807,50 @@ barChart('chart-size', {
   yMax: 9000, yTicks: [0, 2250, 4500, 6750, 9000], yTickFormat: t => Math.round(t) + 'KB',
   tooltipFormat: v => v.toFixed(0) + ' KB',
 });
+
+// 06 QAT
+barChart('chart-qat-clean', {
+  groups: ['Baseline CNN', 'MobileNetV2'],
+  series: [
+    { name: 'FP32', color: S_FP32, values: [DATA.qat_clean.baseline_cnn.fp32, DATA.qat_clean.mobilenet_transfer.fp32] },
+    { name: 'PTQ', color: S_PTQ, values: [DATA.qat_clean.baseline_cnn.ptq, DATA.qat_clean.mobilenet_transfer.ptq] },
+    { name: 'QAT', color: S_QAT, values: [DATA.qat_clean.baseline_cnn.qat, DATA.qat_clean.mobilenet_transfer.qat] },
+  ],
+  yMax: 1, yTicks: [0, 0.25, 0.5, 0.75, 1], yTickFormat: t => Math.round(t*100)+'%',
+  tooltipFormat: v => fmtPct(v, 1),
+});
+
+barChart('chart-qat-corruption', {
+  groups: ['Baseline: blur', 'Baseline: b/c', 'MobileNet: blur', 'MobileNet: b/c'],
+  series: [
+    { name: 'FP32', color: S_FP32, values: [
+      DATA.qat_corruption_sev4.baseline_cnn.blur.fp32, DATA.qat_corruption_sev4.baseline_cnn.brightness_contrast.fp32,
+      DATA.qat_corruption_sev4.mobilenet_transfer.blur.fp32, DATA.qat_corruption_sev4.mobilenet_transfer.brightness_contrast.fp32,
+    ] },
+    { name: 'PTQ', color: S_PTQ, values: [
+      DATA.qat_corruption_sev4.baseline_cnn.blur.ptq, DATA.qat_corruption_sev4.baseline_cnn.brightness_contrast.ptq,
+      DATA.qat_corruption_sev4.mobilenet_transfer.blur.ptq, DATA.qat_corruption_sev4.mobilenet_transfer.brightness_contrast.ptq,
+    ] },
+    { name: 'QAT', color: S_QAT, values: [
+      DATA.qat_corruption_sev4.baseline_cnn.blur.qat, DATA.qat_corruption_sev4.baseline_cnn.brightness_contrast.qat,
+      DATA.qat_corruption_sev4.mobilenet_transfer.blur.qat, DATA.qat_corruption_sev4.mobilenet_transfer.brightness_contrast.qat,
+    ] },
+  ],
+  yMax: 1, yTicks: [0, 0.25, 0.5, 0.75, 1], yTickFormat: t => Math.round(t*100)+'%',
+  tooltipFormat: v => fmtPct(v, 1),
+});
+
+function qatAdvSeries(arch) {
+  const d = DATA.qat_adversarial[arch];
+  return [
+    { name: 'FP32 white-box', color: S_FP32, values: d.whitebox_pgd },
+    { name: 'PTQ transfer', color: S_PTQ, values: d.ptq_transfer_pgd },
+    { name: 'QAT white-box', color: S_QAT, values: d.qat_whitebox_pgd },
+    { name: 'FP32->QAT transfer', color: S_BB, values: d.qat_transfer_pgd },
+  ];
+}
+lineChart('chart-qat-adv-baseline', { xValues: epsX, series: qatAdvSeries('baseline_cnn'), xTickFormat: v => v + '/255' });
+lineChart('chart-qat-adv-mobilenet', { xValues: epsX, series: qatAdvSeries('mobilenet_transfer'), xTickFormat: v => v + '/255' });
 </script>
 
 </body>

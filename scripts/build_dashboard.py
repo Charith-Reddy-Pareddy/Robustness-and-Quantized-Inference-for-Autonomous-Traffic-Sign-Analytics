@@ -30,6 +30,10 @@ def build_data():
     mapillary = load("mapillary_generalization_results.json")
     latency = load("latency_benchmark.json")
     stats = load("statistics.json")
+    corr_qat = load("corruption_results_qat.json")
+    qat_wb = load("adversarial_results_qat_whitebox.json")
+    qat_tr = load("adversarial_results_qat_transfer.json")
+    latency_qat = load("latency_benchmark_qat.json")
 
     archs = ["baseline_cnn", "mobilenet_transfer"]
     corruptions = ["blur", "noise", "rotation", "brightness_contrast"]
@@ -80,6 +84,39 @@ def build_data():
             for a in archs
         },
         "statistics_example": stats["corruption"]["mobilenet_transfer"]["brightness_contrast"]["4"],
+        "qat_corruption_sev4": {
+            a: {
+                c: {
+                    "fp32": next(m["accuracy"] for m in corr_fp32[a][c] if m["severity"] == 4),
+                    "ptq": next(m["accuracy"] for m in corr_int8[a][c] if m["severity"] == 4),
+                    "qat": next(m["accuracy"] for m in corr_qat[a][c] if m["severity"] == 4),
+                }
+                for c in ["blur", "brightness_contrast"]
+            }
+            for a in archs
+        },
+        "qat_adversarial": {
+            a: {
+                "whitebox_pgd": [m["attack_success_rate"] for m in adv[a]["pgd"]],
+                "ptq_transfer_pgd": [m["transfer_attack_success_rate"] for m in tr[a]["pgd"]],
+                "qat_whitebox_pgd": [m["attack_success_rate"] for m in qat_wb[a]["pgd"]],
+                "qat_transfer_pgd": [m["attack_success_rate"] for m in qat_tr[a]["pgd"]],
+            }
+            for a in archs
+        },
+        "qat_clean": {
+            a: {"fp32": corr_fp32[a]["clean"]["accuracy"], "ptq": corr_int8[a]["clean"]["accuracy"], "qat": corr_qat[a]["clean"]["accuracy"]}
+            for a in archs
+        },
+        "qat_latency": {
+            a: {
+                "fp32_ms": latency_qat[a]["fp32"]["mean_ms"],
+                "qat_ms": latency_qat[a]["qat_int8"]["mean_ms"],
+                "fp32_kb": latency_qat[a]["fp32"]["size_kb"],
+                "qat_kb": latency_qat[a]["qat_int8"]["size_kb"],
+            }
+            for a in archs
+        },
     }
     return out
 
