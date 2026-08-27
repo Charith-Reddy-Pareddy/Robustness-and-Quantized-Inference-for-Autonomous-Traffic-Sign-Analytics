@@ -4,7 +4,8 @@ Does INT8 quantization for real-time deployment compromise a traffic-sign classi
 robustness to visual corruptions and adversarial attacks — even when clean accuracy is
 preserved?
 
-Full write-up, methodology, and results: [reports/ROBUSTNESS_REPORT.md](reports/ROBUSTNESS_REPORT.md)
+**[Live metrics dashboard](https://charith-reddy-pareddy.github.io/Robustness-and-Quantized-Inference-for-Autonomous-Traffic-Sign-Analytics/)** &middot;
+full write-up, methodology, and results: [reports/ROBUSTNESS_REPORT.md](reports/ROBUSTNESS_REPORT.md)
 
 > **Key finding:** INT8 cut model size ~3.4x and latency ~2x with clean accuracy preserved
 > (≤0.6pp drop). Adversarial examples transferred from FP32 to INT8 no more effectively
@@ -124,7 +125,8 @@ intervals, calibration-size ablation) is a separate, much longer-running set of 
 evaluation across all 5 seeds or all 6 calibration sizes rather than just seed 42.
 
 Plotting scripts (`plot_*.py`) regenerate the figures in `reports/` from the saved JSON
-results. Run the test suite with `pytest`.
+results. `python scripts/build_dashboard.py` regenerates `docs/index.html` (the live
+dashboard, served via GitHub Pages) the same way. Run the test suite with `pytest`.
 
 
 ## Data sources
