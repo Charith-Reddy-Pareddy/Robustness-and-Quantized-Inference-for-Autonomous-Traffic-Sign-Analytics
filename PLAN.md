@@ -90,14 +90,19 @@ Driven by external feedback on the finished project. Each item gets its own comm
          40x range. Calibration size is not a meaningful lever for this task -- the
          MobileNetV2 corruption-robustness cost is a property of static INT8
          quantization itself, not an under-calibration artifact.
+- [x] README overhaul: lead with key finding + figures, restructure around
+      question -> result -> evidence -> methodology -> reproduction
+      -> Key-finding callout + 4 embedded figures at the top, experiment matrix,
+         environment/reproducibility notes. Also shipped an interactive metrics
+         dashboard (docs/index.html, GitHub Pages) covering the same results.
 - [ ] Quantization-aware training (QAT) as a third variant alongside FP32/PTQ INT8,
       re-run full eval suite; QAT's differentiable fake-quant path also fills the
       "INT8 white-box" gap noted in Threat models
+      -> Training complete (both archs). Corruption eval complete. Adversarial eval
+         (true INT8 white-box + FP32->QAT transfer) still running in the background.
 - [ ] Expand corruption suite (JPEG compression, fog, rain, shadow, motion blur,
       perspective), categorized photometric/geometric/noise/environmental
 - [ ] Second OOD dataset beyond Mapillary+DFG
-- [ ] README overhaul: lead with key finding + figures, restructure around
-      question -> result -> evidence -> methodology -> reproduction
 
 ## Notes
 - Dataset: GTSRB (Kaggle: meowmeowmeowmeowmeow/gtsrb-german-traffic-sign)
