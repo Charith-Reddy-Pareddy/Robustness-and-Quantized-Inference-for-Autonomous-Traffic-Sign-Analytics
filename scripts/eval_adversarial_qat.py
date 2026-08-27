@@ -101,13 +101,15 @@ def main():
     for arch_name, cfg in ARCHS.items():
         print(f"\n=== {arch_name} ===")
 
-        # 1. True INT8 white-box, on the prepared (differentiable) QAT model.
+        # 1. True INT8 white-box, on the prepared (differentiable) QAT model. QAT's
+        # fake-quant observer op isn't implemented for MPS, so this runs entirely on CPU
+        # -- unlike the FP32 attack-generation device used below for the transfer case.
         prepared = load_prepared(arch_name, CKPT_DIR / f"{arch_name}_qat_seed42_prepared.pt")
         prepared_wrapped = NormalizedModel(prepared, cfg["mean"], cfg["std"]).eval()
         arch_wb = {"fgsm": [], "pgd": []}
         for epsilon in EPSILONS:
             for attack in ["fgsm", "pgd"]:
-                metrics = run_attack(prepared_wrapped, loader, device, attack, epsilon)
+                metrics = run_attack(prepared_wrapped, loader, torch.device("cpu"), attack, epsilon)
                 arch_wb[attack].append(metrics)
                 print(f"{arch_name} QAT white-box {attack} eps={epsilon:.4f}: {metrics}")
         white_box_results[arch_name] = arch_wb
