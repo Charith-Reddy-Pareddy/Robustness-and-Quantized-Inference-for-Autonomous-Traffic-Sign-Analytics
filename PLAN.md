@@ -73,11 +73,23 @@ Driven by external feedback on the finished project. Each item gets its own comm
       -> Confirms the FP32->INT8 transfer finding was mostly an artifact of shared
          architecture: cross-arch PGD transfer succeeds on <1% of cases at eps=1/255,
          vs. 46.7-84.6% for same-architecture FP32->INT8 transfer
-- [ ] Statistical rigor: mean +/- std / bootstrap CIs / significance tests for corruption
+- [x] Statistical rigor: mean +/- std / bootstrap CIs / significance tests for corruption
       and adversarial robustness deltas across seeds (currently only clean accuracy is
       multi-seed; robustness evals run on a single seed)
-- [ ] Calibration-set size ablation (50/100/200/500/1000/2000): accuracy, robustness
+      -> Corruption robustness re-run across all 5 seeds (FP32 + INT8), PGD adversarial
+         re-run across all 5 seeds (white-box + transfer). Baseline CNN's near-zero
+         corruption deltas confirmed genuinely non-significant (p>0.8); MobileNetV2's
+         degradation confirmed real and consistent (p<0.002, |Cohen's dz|>3 on blur/
+         rotation/brightness-contrast at severity 4). See ROBUSTNESS_REPORT.md's new
+         "Statistical confirmation" subsections and reports/statistics.json.
+- [x] Calibration-set size ablation (50/100/200/500/1000/2000): accuracy, robustness
       delta, latency at each size
+      -> Both architectures re-quantized at all 6 sizes. Model size is identical at
+         every size (calibration doesn't affect weight precision); clean accuracy and
+         severity-4 blur accuracy both stay within ~0.4pp of their mean across the full
+         40x range. Calibration size is not a meaningful lever for this task -- the
+         MobileNetV2 corruption-robustness cost is a property of static INT8
+         quantization itself, not an under-calibration artifact.
 - [ ] Quantization-aware training (QAT) as a third variant alongside FP32/PTQ INT8,
       re-run full eval suite; QAT's differentiable fake-quant path also fills the
       "INT8 white-box" gap noted in Threat models
