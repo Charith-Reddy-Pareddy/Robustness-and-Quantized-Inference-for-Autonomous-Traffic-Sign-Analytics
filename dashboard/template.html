@@ -419,9 +419,24 @@
 
   <section class="section">
     <div class="section-head"><span class="section-num">04</span><h2>Out-of-distribution generalization</h2></div>
-    <p class="section-note">Same 23 classes, evaluated on GTSRB (dashcam, Germany) vs. Mapillary+DFG (street-level, different country/signage). The FP32-vs-INT8 gap barely moves &mdash; the real story is architecture, not quantization.</p>
-    <div class="panel">
-      <div id="chart-mapillary" class="chart-wrap"></div>
+    <p class="section-note">Two independent OOD datasets, evaluated against the same GTSRB-trained models. The FP32-vs-INT8 gap barely moves on either &mdash; the real story is architecture and domain distance, not quantization.</p>
+    <div class="grid-2">
+      <div class="panel">
+        <h3>Mapillary+DFG (23 classes)</h3>
+        <div class="panel-sub">street-level, Africa-region signage &mdash; MobileNetV2 generalizes far better</div>
+        <div id="chart-mapillary" class="chart-wrap"></div>
+      </div>
+      <div class="panel">
+        <h3>BelgiumTSC (19 classes)</h3>
+        <div class="panel-sub">van dashcam, Belgium &mdash; MobileNetV2's edge nearly disappears</div>
+        <div id="chart-belgium" class="chart-wrap"></div>
+      </div>
+    </div>
+    <div class="callout">
+      Both drop far below GTSRB accuracy on both datasets &mdash; but MobileNetV2's usual
+      generalization advantage (a 16pp-narrower drop on Mapillary+DFG) shrinks to under
+      1pp on BelgiumTSC, a domain much closer to GTSRB's own. Pretraining's payoff looks
+      shift-distance-dependent, not architecture-fixed.
     </div>
   </section>
 
@@ -775,6 +790,18 @@ barChart('chart-mapillary', {
     { name: 'GTSRB (in-distribution)', color: ARCH_A, values: [DATA.mapillary.baseline_cnn.gtsrb, DATA.mapillary.mobilenet_transfer.gtsrb] },
     { name: 'Mapillary FP32', color: S_PTQ, values: [DATA.mapillary.baseline_cnn.fp32, DATA.mapillary.mobilenet_transfer.fp32] },
     { name: 'Mapillary INT8', color: S_BB, values: [DATA.mapillary.baseline_cnn.int8, DATA.mapillary.mobilenet_transfer.int8] },
+  ],
+  yMax: 1, yTicks: [0, 0.25, 0.5, 0.75, 1], yTickFormat: t => Math.round(t*100)+'%',
+  tooltipFormat: v => fmtPct(v, 1),
+});
+
+// Belgium OOD
+barChart('chart-belgium', {
+  groups: ['Baseline CNN', 'MobileNetV2'],
+  series: [
+    { name: 'GTSRB (in-distribution)', color: ARCH_A, values: [DATA.belgium.baseline_cnn.gtsrb, DATA.belgium.mobilenet_transfer.gtsrb] },
+    { name: 'Belgium FP32', color: S_PTQ, values: [DATA.belgium.baseline_cnn.fp32, DATA.belgium.mobilenet_transfer.fp32] },
+    { name: 'Belgium INT8', color: S_BB, values: [DATA.belgium.baseline_cnn.int8, DATA.belgium.mobilenet_transfer.int8] },
   ],
   yMax: 1, yTicks: [0, 0.25, 0.5, 0.75, 1], yTickFormat: t => Math.round(t*100)+'%',
   tooltipFormat: v => fmtPct(v, 1),

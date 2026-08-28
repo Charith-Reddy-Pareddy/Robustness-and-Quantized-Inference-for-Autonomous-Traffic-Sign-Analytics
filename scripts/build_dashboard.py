@@ -28,6 +28,7 @@ def build_data():
     tr = load("transfer_attack_results.json")
     bb = load("blackbox_transfer_results.json")
     mapillary = load("mapillary_generalization_results.json")
+    belgium = load("belgium_generalization_results.json")
     latency = load("latency_benchmark.json")
     stats = load("statistics.json")
     corr_qat = load("corruption_results_qat.json")
@@ -71,6 +72,14 @@ def build_data():
                 "gtsrb": mapillary[a]["gtsrb_test_accuracy_restricted"],
                 "fp32": mapillary[a]["fp32_accuracy"],
                 "int8": mapillary[a]["int8_accuracy"],
+            }
+            for a in archs
+        },
+        "belgium": {
+            a: {
+                "gtsrb": belgium[a]["gtsrb_test_accuracy_restricted"],
+                "fp32": belgium[a]["fp32_accuracy"],
+                "int8": belgium[a]["int8_accuracy"],
             }
             for a in archs
         },
