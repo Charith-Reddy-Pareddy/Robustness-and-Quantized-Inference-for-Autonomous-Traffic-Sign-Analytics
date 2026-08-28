@@ -18,20 +18,27 @@ full write-up, methodology, and results: [reports/ROBUSTNESS_REPORT.md](reports/
 > adversarial and corruption robustness (better on all 10 corruption types tested) but
 > leaves MobileNetV2's roughly unchanged — confounded, in both cases, with the extra
 > fine-tuning epochs PTQ never received. Both models also generalize far worse than their
-> GTSRB numbers suggest on a different dataset (Mapillary+DFG) — but the FP32-vs-INT8 gap
-> stays just as small there as on GTSRB.
+> GTSRB numbers suggest on two independent OOD datasets (Mapillary+DFG, BelgiumTSC) — but
+> the FP32-vs-INT8 gap stays under 0.6pp everywhere, the most consistently-replicated
+> finding in the whole project. One more wrinkle: MobileNetV2's big generalization edge
+> over the baseline CNN on Mapillary (a 16pp-narrower drop) nearly vanishes on BelgiumTSC,
+> a domain much closer to GTSRB — pretraining's payoff looks shift-distance-dependent.
 
 | Architecture comparison (FP32, 5 seeds) | Corruption + adversarial, FP32 vs. PTQ |
 |---|---|
 | ![Architecture comparison](reports/arch_comparison.png) | ![Quantization comparison](reports/quantization_comparison.png) |
 
-| Out-of-distribution generalization (Mapillary+DFG) | Black-box cross-architecture transfer |
+| OOD generalization (Mapillary+DFG) | OOD generalization (BelgiumTSC) |
 |---|---|
-| ![Mapillary generalization](reports/mapillary_generalization.png) | ![Black-box transfer](reports/blackbox_transfer.png) |
+| ![Mapillary generalization](reports/mapillary_generalization.png) | ![Belgium generalization](reports/belgium_generalization.png) |
 
-| FP32 vs. PTQ vs. QAT, all 10 corruption types | PGD success, all 4 adversarial threat models |
+| Black-box cross-architecture transfer | PGD success, all 4 adversarial threat models |
 |---|---|
-| ![QAT corruption comparison](reports/qat_corruption_comparison.png) | ![QAT adversarial comparison](reports/qat_adversarial_comparison.png) |
+| ![Black-box transfer](reports/blackbox_transfer.png) | ![QAT adversarial comparison](reports/qat_adversarial_comparison.png) |
+
+| FP32 vs. PTQ vs. QAT, all 10 corruption types |
+|---|
+| ![QAT corruption comparison](reports/qat_corruption_comparison.png) |
 
 See [Threat models](reports/ROBUSTNESS_REPORT.md#threat-models) in the full report for
 exactly what each adversarial claim does and doesn't establish, and
@@ -47,7 +54,8 @@ full QAT write-up including its training-confound caveat.
   5 seeds.
 - **Robustness axes**: 10 corruption types (noise, blur, geometric, photometric,
   environmental) x 4 severities; FGSM/PGD adversarial attacks across 4 epsilons;
-  out-of-distribution generalization to a second dataset.
+  out-of-distribution generalization to two independent datasets (Mapillary+DFG,
+  BelgiumTSC).
 - **Quantization**: static PTQ (ONNX Runtime) and QAT (PyTorch, fine-tuned from the FP32
   checkpoint), each evaluated against FP32 on every axis above; QAT's differentiable
   fake-quant path also enables a genuine INT8 white-box adversarial attack.
@@ -121,17 +129,21 @@ python scripts/eval_transfer_attacks.py      # INT8 transfer-attack evaluation
 python scripts/eval_blackbox_transfer.py     # cross-architecture black-box transfer
 python scripts/benchmark_latency.py          # FP32 vs INT8 latency/size (PTQ, ONNX Runtime)
 python scripts/eval_mapillary_generalization.py  # generalization check (see below)
+python scripts/eval_belgium_generalization.py    # second generalization check (see below)
 python scripts/train_qat.py                  # QAT fine-tuning, both architectures (CPU only)
 python scripts/eval_corruptions_qat.py       # QAT corruption robustness, all 10 types
 python scripts/eval_adversarial_qat.py       # QAT white-box + FP32->QAT transfer PGD/FGSM
 python scripts/benchmark_latency_qat.py      # FP32 vs QAT latency/size (PyTorch/qnnpack)
 ```
 
-The generalization check needs the [Mapillary+DFG dataset](https://www.kaggle.com/datasets/nomihsa965/traffic-signs-dataset-mapillary-and-dfg)
-(~12GB unzipped) downloaded to `data/mapillary/`:
+The generalization checks need the [Mapillary+DFG dataset](https://www.kaggle.com/datasets/nomihsa965/traffic-signs-dataset-mapillary-and-dfg)
+(~12GB unzipped) downloaded to `data/mapillary/`, and the
+[BelgiumTSC dataset](https://www.kaggle.com/datasets/abhi8923shriv/belgium-ts) (~450MB)
+downloaded to `data/belgium/`:
 
 ```bash
 kaggle datasets download -d nomihsa965/traffic-signs-dataset-mapillary-and-dfg -p data/mapillary --unzip
+kaggle datasets download -d abhi8923shriv/belgium-ts -p data/belgium --unzip
 ```
 
 The statistical-rigor pass (multi-seed corruption/adversarial evaluation, confidence
@@ -149,9 +161,14 @@ dashboard, served via GitHub Pages) the same way. Run the test suite with `pytes
 
 - Primary: [GTSRB](https://www.kaggle.com/datasets/meowmeowmeowmeowmeow/gtsrb-german-traffic-sign)
   (German Traffic Sign Recognition Benchmark)
-- Generalization check: [Traffic Signs Dataset (Mapillary and DFG)](https://www.kaggle.com/datasets/nomihsa965/traffic-signs-dataset-mapillary-and-dfg),
+- Generalization check 1: [Traffic Signs Dataset (Mapillary and DFG)](https://www.kaggle.com/datasets/nomihsa965/traffic-signs-dataset-mapillary-and-dfg),
   a Kaggle mirror combining crops from the Mapillary Traffic Sign Dataset and the DFG
   Traffic Sign Data Set, refined for the Africa region (76 classes). GTSRB's 43 classes
   were mapped to 23 of these by semantic meaning — see `src/data/mapillary_mapping.py`.
+- Generalization check 2: [BelgiumTSC](https://www.kaggle.com/datasets/abhi8923shriv/belgium-ts)
+  (CC0), 62 classes of Belgian traffic signs from roof-mounted van cameras. GTSRB's 43
+  classes were mapped to 19 of these — see `src/data/belgium_mapping.py`, which also
+  documents a labeling-validation process (cross-checking visual guesses against the
+  GTSRB-trained model's actual predictions) that caught 4 real mapping errors.
 - The OpenCV webcam demo was scoped as lowest-priority/no-research-value in the original
   project spec and was not attempted.
