@@ -444,6 +444,72 @@ a model as small as the baseline CNN (1.14x vs. Phase 2's 2.22x), but scale far 
 for MobileNetV2 (5.77x vs. 2.08x) — a runtime-implementation difference, not a
 quantization-technique one.
 
+## Phase 5: second generalization check (BelgiumTSC)
+
+A second, independent out-of-distribution test alongside Phase 3's Mapillary+DFG check:
+[BelgiumTSC](https://www.kaggle.com/datasets/abhi8923shriv/belgium-ts) (CC0), 62 classes
+of Belgian traffic signs captured from roof-mounted van cameras — a different country
+than GTSRB's Germany, a different capture setup than Mapillary+DFG's crowdsourced
+street-level crops, but the same Vienna Convention sign family as GTSRB. Does the
+Mapillary finding (large accuracy drop, small FP32-vs-INT8 gap) replicate on a second,
+unrelated dataset?
+
+**Methodology and a real labeling bug worth documenting.** BelgiumTSC ships no official
+class-meaning file, unlike Mapillary+DFG's `classes.json`. Classes were identified
+visually, then **validated by checking what the GTSRB-trained model actually predicts for
+~20 images per candidate class** — a mismatch between the visual guess and the model's
+consistent prediction reliably caught 4 labeling errors from thumbnail-resolution visual
+identification (e.g. a class that looked like "stop" at small size turned out to be "no
+entry"; another that looked like "pedestrians" was actually "right-of-way at next
+intersection", confirmed by comparing side-by-side against real GTSRB reference images).
+Fixing these raised measured accuracy from ~47% to ~70% — a reminder that a generalization
+number is only as trustworthy as the class mapping behind it. Full detail in
+`src/data/belgium_mapping.py`. 19 classes matched confidently; GTSRB's "no passing" and
+"pedestrians" have no confident match in this particular 62-class reduced subset.
+
+### Result: a large drop again, but this time both architectures drop by about the same amount
+
+See `belgium_generalization.png`.
+
+| Architecture | GTSRB test (19 classes) | BelgiumTSC (FP32) | Drop |
+|---|---|---|---|
+| Baseline CNN | 92.52% | 68.81% | **-23.7pp** |
+| MobileNetV2 (transfer) | 96.78% | 73.98% | **-22.8pp** |
+
+Both models again generalize far worse than their GTSRB numbers suggest, replicating
+Phase 3's headline finding on a second, independent dataset. But the *architecture*
+story is different: on Mapillary, MobileNetV2's pretrained features gave it a large
+generalization edge (a 28.4pp drop vs. baseline's 44.8pp — 16.4pp narrower). On
+BelgiumTSC, that edge nearly vanishes (22.8pp vs. 23.7pp — under 1pp apart). Belgium's
+much closer visual and cultural proximity to GTSRB's Germany (same continent, same sign
+manufacturing standards, likely similar camera/lighting conditions) plausibly explains
+why: MobileNetV2's ImageNet-pretrained generalization advantage matters most when the
+shift is large (crossing into a visually distant domain), and matters much less when the
+new domain is already visually close to the training distribution.
+
+Per-class F1 (MobileNetV2, FP32) ranges from 0.97 ("go straight or right") down to
+essentially 0 ("turn left ahead", n=222 — not a small-sample fluke). That specific
+failure was checked carefully given the mapping bugs found above: the BelgiumTSC icon is
+an unambiguous left-pointing arrow matching GTSRB 34 exactly, but the model consistently
+predicts "keep right" or "keep left" instead — a genuine, surprising generalization
+failure on a plain mandatory-direction sign, not a labeling error. "Road work" and
+"children crossing" also generalize poorly (F1 ~0.43-0.45) and are mutually confused by
+the model — the same two classes that confused each other during the mapping validation
+step above, suggesting the model's road-work/children-crossing decision boundary doesn't
+transfer well regardless of which dataset it's tested on.
+
+### FP32 vs. INT8 on BelgiumTSC: the small-gap finding replicates a second time
+
+| Architecture | FP32 | INT8 | Delta |
+|---|---|---|---|
+| Baseline CNN | 68.81% | 68.67% | -0.14pp |
+| MobileNetV2 | 73.98% | 73.73% | -0.25pp |
+
+Both deltas are smaller than even Phase 3's already-small Mapillary gaps (-0.58pp /
+-0.38pp there). Across three independent test conditions now (GTSRB, Mapillary+DFG,
+BelgiumTSC), quantization's cost to accuracy stays consistently under 1 percentage point
+— the single most robust finding in this entire report.
+
 ## Conclusion
 
 For this task, INT8 quantization delivers its real-time deployment benefits (~2x latency,
@@ -461,10 +527,14 @@ as on GTSRB.
 The practical implication: architecture choice matters more than the FP32-vs-INT8
 decision here, and matters even more for generalization than for quantization safety.
 MobileNetV2 trades a bit of worst-case corruption robustness for much better accuracy,
-adversarial robustness under FGSM, and — by a wide margin — generalization to signs it's
-never seen the likes of. Given that the whole point of an autonomous traffic-sign system
-is operating on signs the training set didn't anticipate, that last property arguably
-matters more than any of the individually-tested robustness axes.
+adversarial robustness under FGSM, and — on Mapillary+DFG, by a wide margin —
+generalization to signs it's never seen the likes of. Given that the whole point of an
+autonomous traffic-sign system is operating on signs the training set didn't anticipate,
+that last property arguably matters more than any of the individually-tested robustness
+axes — but Phase 5 complicates it: MobileNetV2's generalization edge over the baseline
+CNN nearly disappears on BelgiumTSC, a domain much closer to GTSRB than Mapillary+DFG's
+crops are. Pretraining's generalization payoff looks domain-shift-dependent, not a fixed
+property of the architecture.
 
 Phase 4 adds a genuine INT8 white-box result and a third quantization variant, and the
 same architecture-matters theme holds: QAT is a clear win for the baseline CNN (better
@@ -474,6 +544,12 @@ leaves its adversarial robustness roughly unchanged. Whether that's because
 quantization-awareness itself helps small from-scratch models more, or simply because 3
 epochs of extra fine-tuning helps a small model more than a model already fine-tuned from
 ImageNet, this project's single-run setup can't distinguish — see Limitations.
+
+Phase 5 is this report's most-replicated finding: across three independent test
+conditions (GTSRB itself, Mapillary+DFG, BelgiumTSC), the FP32-vs-INT8 accuracy gap never
+exceeds 0.6 percentage points. Whatever else is true about this task, static INT8
+quantization's cost to clean accuracy is small, consistent, and not domain-shift-
+sensitive.
 
 ## Limitations
 
@@ -495,12 +571,13 @@ ImageNet, this project's single-run setup can't distinguish — see Limitations.
 - QAT was fine-tuned for a fixed 3 epochs at a single learning rate (1e-4), chosen without
   a hyperparameter sweep; a different schedule could change how much of Phase 4's
   clean-accuracy and robustness shift is attributable to quantization-awareness itself.
-- The Mapillary generalization check only covers the 23 GTSRB classes with an
-  unambiguous semantic match, excludes all numeric speed-limit classes entirely, and its
-  worst-performing per-class results are plausibly confounded by cross-standard
-  pictogram differences rather than pure distribution shift (see Phase 3). The OpenCV
-  webcam demo (marked lowest-priority/no-research-value in the original spec) was not
-  attempted.
+- The Mapillary and BelgiumTSC generalization checks only cover the classes with an
+  unambiguous semantic match (23 and 19 respectively), exclude all numeric speed-limit
+  classes entirely, and their worst-performing per-class results are plausibly confounded
+  by cross-standard pictogram differences rather than pure distribution shift (see
+  Phases 3 and 5). Both are single-seed (42) only, unlike the multi-seed statistical
+  checks run for GTSRB-native corruption/adversarial results. The OpenCV webcam demo
+  (marked lowest-priority/no-research-value in the original spec) was not attempted.
 
 ## Figures
 
@@ -512,6 +589,7 @@ All in `reports/`:
 - `adversarial_curves.png` — FP32 accuracy vs. attack strength (FGSM, PGD)
 - `quantization_comparison.png` — FP32 vs. INT8, corruption + adversarial, side by side
 - `mapillary_generalization.png` — GTSRB vs. Mapillary accuracy, per-class F1 breakdown
+- `belgium_generalization.png` — GTSRB vs. BelgiumTSC accuracy, per-class F1 breakdown
 - `blackbox_transfer.png` — black-box cross-architecture transfer vs. white-box PGD
 - `corruption_severity4_ci.png` — multi-seed FP32 vs. INT8 severity-4 accuracy, 95% CIs
 - `calibration_ablation.png` — clean accuracy and blur-severity-4 accuracy vs. calibration size
