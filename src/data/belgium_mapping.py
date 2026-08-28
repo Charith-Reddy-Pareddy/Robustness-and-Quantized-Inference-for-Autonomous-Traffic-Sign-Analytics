@@ -3,48 +3,74 @@
 distribution generalization check alongside Mapillary+DFG (src/data/mapillary_mapping.py).
 
 BelgiumTSC ships no official class-ID-to-meaning file (unlike Mapillary+DFG's
-classes.json) -- its 62 classes were identified by visually inspecting sample images from
-each class folder and comparing against GTSRB_CLASS_NAMES (see mapillary_mapping.py).
-Only classes with a confident, unambiguous visual match are included. Notably excluded,
-same policy as the Mapillary mapping:
-- Speed-limit classes: BelgiumTSC's speed signs are diamond-shaped advisory signs, not
-  GTSRB's circular regulatory ones -- different sign category, not just a rendering
-  difference.
-- Direction-specific single curves (BelgiumTSC 00003/00004): GTSRB separates "dangerous
-  curve left" (19) from "...right" (20), and the curve direction isn't reliably
-  distinguishable from these particular low-resolution dashcam-style crops -- an
-  incorrect direction guess would be worse than no match at all. The *double* curve
-  (00006) is included since GTSRB's class 21 has no directional sub-variant.
-- Symmetric "road narrows" (00014, 00016): GTSRB 24 is specifically "narrows on the
-  right" (asymmetric icon); these BelgiumTSC icons narrow from both sides.
-- Farm-animal crossing (00009, cow icon): a different Vienna Convention pictogram from
-  GTSRB 31's wild-animal (deer) icon, not a rendering variant of the same sign.
-- Signs with no GTSRB equivalent at all (parking, no-stopping, height/weight limits
-  beyond the one weight-limit match below, level crossings, one-way streets, etc.).
+classes.json). Classes were identified by visually inspecting sample images from each of
+the 62 class folders and comparing against GTSRB_CLASS_NAMES, then **validated by
+checking what the GTSRB-trained MobileNetV2 predicts for ~20 images per candidate class**
+-- a mismatch between the visual guess and the model's consistent prediction was a
+reliable signal of a wrong label, not just "hard to generalize."
 
-GTSRB 17 ("no entry") has no match: this 62-class reduced subset doesn't appear to
-include the plain white-bar-on-red-circle sign at all -- BelgiumTSC class 00023, which
-looked like a plausible match at thumbnail resolution, turned out on closer inspection to
-be "no bicycles" (a red circle with a bicycle pictogram), a different sign entirely.
+That validation caught real errors from single-thumbnail visual identification (all
+between visually-similar triangular/circular pictograms at low resolution):
+- Class 00022 looked like "stop" at thumbnail size; it's actually "no entry" (plain
+  red circle, white bar) -- the model predicted "no entry" for 20/20 samples.
+- Class 00007 looked like "road work" (a humanoid figure); it's actually "children
+  crossing" (two child figures) -- confirmed by both closer visual inspection and the
+  model's predictions clustering on "children crossing".
+- Class 00017 looked like "pedestrians" (a person-shaped icon); side-by-side comparison
+  against real GTSRB class 11 and 27 reference images confirmed it's actually
+  "right-of-way at next intersection" (GTSRB 11's icon, not GTSRB 27's walking figure).
+- Class 00020 looked like "no passing" (two arrow-like shapes); closer inspection showed
+  a directional priority-arrows pictogram with no GTSRB equivalent, not two vehicles.
+The genuine "road work" (00010, person digging with a dirt pile) and "stop" (00021,
+literal octagonal "STOP" text) signs were found elsewhere in the 62 classes.
+
+Two GTSRB classes have no confident BelgiumTSC match at all: "no passing" (9, no
+two-vehicle-overtaking icon found) and "pedestrians" (27, no single-walking-figure icon
+found) -- not necessarily absent from Belgium as a country, just not present in this
+particular 62-class reduced subset.
+
+Other exclusions (never had a viable candidate to begin with), same policy as the
+Mapillary mapping:
+- Speed-limit classes: BelgiumTSC's speed signs are diamond-shaped advisory signs, not
+  GTSRB's circular regulatory ones -- a different sign category, not a rendering
+  difference.
+- Direction-specific single curves: GTSRB separates "dangerous curve left" (19) from
+  "...right" (20), and curve direction isn't reliably distinguishable from these
+  low-resolution dashcam-style crops -- an incorrect direction guess would be worse than
+  no match. The *double* curve (00006) is included since GTSRB 21 has no directional
+  sub-variant.
+- Symmetric "road narrows" icons: GTSRB 24 is specifically "narrows on the right"
+  (asymmetric icon); BelgiumTSC's candidates narrow from both sides.
+- Farm-animal crossing (cow icon): a different Vienna Convention pictogram from GTSRB
+  31's wild-animal (deer) icon, not a rendering variant of the same sign.
+- Signs with no GTSRB equivalent at all (parking, no-stopping, height/weight limits
+  beyond the one weight-limit match below, level crossings, one-way streets, mandatory
+  bicycle/pedestrian paths, etc.).
+
+Two classes (double curve, road work, turn left ahead) validated as visually correct but
+still generalize poorly (see reports/belgium_generalization_results.json's per-class F1)
+-- kept in the mapping since the label itself is right; the poor transfer is a genuine
+finding, not a mapping artifact. See ROBUSTNESS_REPORT.md's BelgiumTSC section.
 """
 
 from src.data.mapillary_mapping import GTSRB_CLASS_NAMES  # re-exported for convenience
 
 # GTSRB class ID -> BelgiumTSC class ID (zero-padded folder name, e.g. "00022")
 GTSRB_TO_BELGIUM = {
-    9: "00020",  # no passing
+    11: "00017",  # right-of-way at next intersection
     12: "00061",  # priority road
     13: "00019",  # yield
-    14: "00022",  # stop
+    14: "00021",  # stop
     15: "00028",  # no vehicles
     16: "00025",  # no vehicles >3.5t
+    17: "00022",  # no entry
     18: "00013",  # general caution
     21: "00006",  # double curve
     22: "00000",  # bumpy road
     23: "00002",  # slippery road
-    25: "00007",  # road work
+    25: "00010",  # road work
     26: "00011",  # traffic signals
-    27: "00017",  # pedestrians
+    28: "00007",  # children crossing
     29: "00008",  # bicycles crossing
     34: "00035",  # turn left ahead
     35: "00034",  # ahead only

@@ -15,10 +15,12 @@ def test_mapping_has_no_duplicate_belgium_classes():
     assert len(belgium_classes) == len(set(belgium_classes))
 
 
-def test_no_entry_is_deliberately_excluded():
-    """GTSRB 17 ("no entry") has no confident BelgiumTSC match -- see belgium_mapping.py
-    for why a plausible-looking candidate turned out to be a different sign."""
-    assert 17 not in GTSRB_TO_BELGIUM
+def test_no_passing_and_pedestrians_are_deliberately_excluded():
+    """GTSRB 9 ("no passing") and 27 ("pedestrians") have no confident BelgiumTSC match
+    in this 62-class subset -- see belgium_mapping.py for the validation process (model-
+    prediction cross-checking) that ruled out the plausible-looking candidates."""
+    assert 9 not in GTSRB_TO_BELGIUM
+    assert 27 not in GTSRB_TO_BELGIUM
 
 
 def _write_belgium_class(root, split_folder, belgium_class, rows):
