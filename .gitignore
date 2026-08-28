@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 data/raw/
 data/mapillary/
+data/belgium/
 data/*.zip
 .DS_Store
 *.egg-info/
