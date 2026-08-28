@@ -108,7 +108,15 @@ Driven by external feedback on the finished project. Each item gets its own comm
       -> 10 corruptions total; re-ran FP32, PTQ, and QAT eval across all of them.
          Notable finding: shadow is the one corruption where the baseline CNN is more
          robust than MobileNetV2 (reverses the usual pattern).
-- [ ] Second OOD dataset beyond Mapillary+DFG
+- [x] Second OOD dataset beyond Mapillary+DFG
+      -> BelgiumTSC (62 classes, CC0), 19 mapped to GTSRB. Validation against the
+         GTSRB-trained model's actual predictions caught 4 real mapping errors from
+         thumbnail-resolution visual identification -- fixing them raised measured
+         accuracy from ~47% to ~70%. FP32-vs-INT8 gap replicates a third time (<0.3pp on
+         both architectures), but MobileNetV2's Mapillary-driven generalization
+         advantage over the baseline CNN nearly vanishes on this closer-to-GTSRB domain
+         (22.8pp vs 23.7pp drop, vs Mapillary's 28.4pp vs 44.8pp). Full writeup: Phase 5
+         in ROBUSTNESS_REPORT.md.
 
 ## Notes
 - Dataset: GTSRB (Kaggle: meowmeowmeowmeowmeow/gtsrb-german-traffic-sign)
