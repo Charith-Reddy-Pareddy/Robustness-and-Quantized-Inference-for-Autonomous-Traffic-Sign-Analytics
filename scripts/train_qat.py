@@ -28,9 +28,10 @@ sys.path.insert(0, str(ROOT))
 
 from src.data.dataset import GTSRBDataset
 from src.data.ingest import load_test_dataframe, load_train_dataframe, track_aware_split
-from src.data.transforms import IMAGENET_MEAN, IMAGENET_STD, NORM_MEAN, NORM_STD, get_transform
+from src.data.transforms import get_transform
 from src.models.evaluate import predict, summarize
-from src.models.qat import build_baseline_cnn_qat, build_mobilenet_qat, convert_to_quantized, prepare_for_qat
+from src.models.qat import BUILD_FNS, convert_to_quantized, prepare_for_qat
+from src.models.registry import archs_with_ckpt
 
 RAW_DIR = ROOT / "data" / "raw"
 CKPT_DIR = ROOT / "checkpoints"
@@ -40,18 +41,8 @@ QAT_LR = 1e-4
 BATCH_SIZE = 128
 
 ARCHS = {
-    "baseline_cnn": {
-        "build_fn": build_baseline_cnn_qat,
-        "fp32_ckpt": "baseline_cnn_seed42.pt",
-        "mean": NORM_MEAN,
-        "std": NORM_STD,
-    },
-    "mobilenet_transfer": {
-        "build_fn": build_mobilenet_qat,
-        "fp32_ckpt": "mobilenet_transfer_seed42.pt",
-        "mean": IMAGENET_MEAN,
-        "std": IMAGENET_STD,
-    },
+    name: {"build_fn": BUILD_FNS[name], "fp32_ckpt": spec["ckpt"], "mean": spec["mean"], "std": spec["std"]}
+    for name, spec in archs_with_ckpt().items()
 }
 
 

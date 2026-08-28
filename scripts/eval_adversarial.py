@@ -15,10 +15,9 @@ sys.path.insert(0, str(ROOT))
 
 from src.data.dataset import GTSRBDataset
 from src.data.ingest import load_test_dataframe
-from src.data.transforms import IMAGENET_MEAN, IMAGENET_STD, NORM_MEAN, NORM_STD, get_transform
-from src.models.baseline_cnn import BaselineCNN
+from src.data.transforms import get_transform
+from src.models.registry import archs_with_ckpt
 from src.models.train import get_device, set_seed
-from src.models.transfer_model import build_mobilenet
 from src.models.wrapper import NormalizedModel
 from src.robustness.adversarial import fgsm_attack, pgd_attack
 
@@ -29,20 +28,7 @@ REPORTS_DIR = ROOT / "reports"
 EPSILONS = [1 / 255, 2 / 255, 4 / 255, 8 / 255]
 PGD_STEPS = 10
 
-ARCHS = {
-    "baseline_cnn": {
-        "model_fn": lambda: BaselineCNN(num_classes=43),
-        "mean": NORM_MEAN,
-        "std": NORM_STD,
-        "ckpt": "baseline_cnn_seed42.pt",
-    },
-    "mobilenet_transfer": {
-        "model_fn": lambda: build_mobilenet(num_classes=43),
-        "mean": IMAGENET_MEAN,
-        "std": IMAGENET_STD,
-        "ckpt": "mobilenet_transfer_seed42.pt",
-    },
-}
+ARCHS = archs_with_ckpt()
 
 
 def run_attack_eval(model, loader, device, attack: str, epsilon: float):

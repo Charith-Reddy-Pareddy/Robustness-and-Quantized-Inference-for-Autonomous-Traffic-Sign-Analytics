@@ -11,9 +11,8 @@ sys.path.insert(0, str(ROOT))
 
 from src.data.dataset import GTSRBDataset
 from src.data.ingest import load_train_dataframe
-from src.data.transforms import IMAGENET_MEAN, IMAGENET_STD, NORM_MEAN, NORM_STD, get_transform
-from src.models.baseline_cnn import BaselineCNN
-from src.models.transfer_model import build_mobilenet
+from src.data.transforms import get_transform
+from src.models.registry import archs_with_ckpt
 from src.models.wrapper import NormalizedModel
 from src.quantization.export import assert_onnx_matches_torch, export_to_onnx
 from src.quantization.quantize import quantize_to_int8
@@ -24,20 +23,7 @@ ONNX_DIR = ROOT / "onnx"
 
 N_CALIBRATION = 1000
 
-ARCHS = {
-    "baseline_cnn": {
-        "model_fn": lambda: BaselineCNN(num_classes=43),
-        "mean": NORM_MEAN,
-        "std": NORM_STD,
-        "ckpt": "baseline_cnn_seed42.pt",
-    },
-    "mobilenet_transfer": {
-        "model_fn": lambda: build_mobilenet(num_classes=43),
-        "mean": IMAGENET_MEAN,
-        "std": IMAGENET_STD,
-        "ckpt": "mobilenet_transfer_seed42.pt",
-    },
-}
+ARCHS = archs_with_ckpt()
 
 
 def build_calibration_samples(train_df, n: int) -> np.ndarray:

@@ -22,12 +22,11 @@ from src.data.belgium_ingest import load_belgium_dataframe
 from src.data.belgium_mapping import GTSRB_TO_BELGIUM
 from src.data.dataset import GTSRBDataset
 from src.data.ingest import load_test_dataframe
-from src.data.transforms import IMAGENET_MEAN, IMAGENET_STD, NORM_MEAN, NORM_STD, get_transform
-from src.models.baseline_cnn import BaselineCNN
+from src.data.transforms import get_transform
 from src.models.evaluate import predict, summarize
 from src.models.onnx_infer import predict_onnx
+from src.models.registry import archs_with_ckpt
 from src.models.train import get_device
-from src.models.transfer_model import build_mobilenet
 
 RAW_DIR = ROOT / "data" / "raw"
 BELGIUM_DIR = ROOT / "data" / "belgium"
@@ -37,20 +36,7 @@ REPORTS_DIR = ROOT / "reports"
 
 MAPPED_CLASSES = sorted(GTSRB_TO_BELGIUM.keys())
 
-ARCHS = {
-    "baseline_cnn": {
-        "model_fn": lambda: BaselineCNN(num_classes=43),
-        "mean": NORM_MEAN,
-        "std": NORM_STD,
-        "ckpt": "baseline_cnn_seed42.pt",
-    },
-    "mobilenet_transfer": {
-        "model_fn": lambda: build_mobilenet(num_classes=43),
-        "mean": IMAGENET_MEAN,
-        "std": IMAGENET_STD,
-        "ckpt": "mobilenet_transfer_seed42.pt",
-    },
-}
+ARCHS = archs_with_ckpt()
 
 
 def restricted_summary(preds, labels):

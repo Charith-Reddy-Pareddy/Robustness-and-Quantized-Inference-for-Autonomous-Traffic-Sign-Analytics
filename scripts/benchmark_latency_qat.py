@@ -16,9 +16,8 @@ import torch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from src.models.baseline_cnn import BaselineCNN
 from src.models.qat import load_converted
-from src.models.transfer_model import build_mobilenet
+from src.models.registry import ARCH_SPECS
 
 CKPT_DIR = ROOT / "checkpoints"
 REPORTS_DIR = ROOT / "reports"
@@ -26,10 +25,7 @@ REPORTS_DIR = ROOT / "reports"
 N_WARMUP = 10
 N_RUNS = 200
 
-ARCHS = {
-    "baseline_cnn": lambda: BaselineCNN(num_classes=43),
-    "mobilenet_transfer": lambda: build_mobilenet(num_classes=43),
-}
+ARCHS = {name: spec["model_fn"] for name, spec in ARCH_SPECS.items()}
 
 
 def model_size_kb(model: torch.nn.Module) -> float:

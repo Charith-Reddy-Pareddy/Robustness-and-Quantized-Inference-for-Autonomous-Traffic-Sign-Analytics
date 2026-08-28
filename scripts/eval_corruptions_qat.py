@@ -13,19 +13,17 @@ sys.path.insert(0, str(ROOT))
 
 from src.data.dataset import GTSRBDataset
 from src.data.ingest import load_test_dataframe
-from src.data.transforms import IMAGENET_MEAN, IMAGENET_STD, NORM_MEAN, NORM_STD, get_transform
+from src.data.transforms import get_transform
 from src.models.evaluate import predict, summarize
 from src.models.qat import load_converted
+from src.models.registry import ARCH_SPECS
 from src.robustness.corruptions import CORRUPTIONS, SEVERITIES
 
 RAW_DIR = ROOT / "data" / "raw"
 CKPT_DIR = ROOT / "checkpoints"
 REPORTS_DIR = ROOT / "reports"
 
-ARCHS = {
-    "baseline_cnn": {"mean": NORM_MEAN, "std": NORM_STD},
-    "mobilenet_transfer": {"mean": IMAGENET_MEAN, "std": IMAGENET_STD},
-}
+ARCHS = {name: {"mean": spec["mean"], "std": spec["std"]} for name, spec in ARCH_SPECS.items()}
 
 
 def evaluate(model, test_df, mean, std, corruption_fn=None):
