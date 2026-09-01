@@ -3,17 +3,15 @@
 import sys
 from pathlib import Path
 
-import numpy as np
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from src.data.dataset import GTSRBDataset
 from src.data.ingest import load_train_dataframe
-from src.data.transforms import get_transform
 from src.models.registry import archs_with_ckpt
 from src.models.wrapper import NormalizedModel
+from src.quantization.calibration import build_calibration_samples
 from src.quantization.export import assert_onnx_matches_torch, export_to_onnx
 from src.quantization.quantize import quantize_to_int8
 
@@ -24,14 +22,6 @@ ONNX_DIR = ROOT / "onnx"
 N_CALIBRATION = 1000
 
 ARCHS = archs_with_ckpt()
-
-
-def build_calibration_samples(train_df, n: int) -> np.ndarray:
-    sample_df = train_df.sample(n, random_state=42)
-    pixel_transform = get_transform(mean=[0.0, 0.0, 0.0], std=[1.0, 1.0, 1.0])
-    ds = GTSRBDataset(sample_df, transform=pixel_transform)
-    batch = torch.stack([ds[i][0] for i in range(len(ds))])
-    return batch.numpy().astype(np.float32)
 
 
 def main():
