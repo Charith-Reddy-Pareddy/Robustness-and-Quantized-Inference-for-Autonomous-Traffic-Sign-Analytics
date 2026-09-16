@@ -118,6 +118,38 @@ Driven by external feedback on the finished project. Each item gets its own comm
          (22.8pp vs 23.7pp drop, vs Mapillary's 28.4pp vs 44.8pp). Full writeup: Phase 5
          in ROBUSTNESS_REPORT.md.
 
+## Extensions round 2 (deep research review)
+
+Driven by a second, more research-oriented external review. 11 distinct work items
+(the review's 19 numbered points collapse to 11 unique items — points 10-17 restate
+points 1-8 in short form). Paced one day/session at a time per prior convention — do one
+item, commit/push, then stop for the next prompt rather than blasting through all of them.
+
+- [ ] Day 1 — Resolve the QAT training-epochs confound: fine-tune FP32 for the identical
+      epochs/optimizer/lr/data/schedule/seed as QAT (no fake-quant), compare
+      FP32_original vs. FP32_extra_training vs. QAT on clean accuracy, severity-4
+      corruption aggregate, and white-box PGD.
+- [ ] Day 2 — Strengthen adversarial evaluation: random-start PGD (init inside the L∞
+      ball), multiple restarts, PGD-50, a CW-margin-loss variant; re-run representative
+      comparisons.
+- [ ] Day 3 — QAT multi-seed (3-5 seeds): clean accuracy, corruption aggregate,
+      severity-4, PGD at representative epsilons — bring QAT's replication up to PTQ's
+      existing 5-seed rigor.
+- [ ] Day 4 — Config-driven experiment runner (single entrypoint + config files) to
+      replace ad hoc per-script constants across the ~20 scripts.
+- [ ] Day 5 — Docker + Makefile one-command reproducibility environment.
+- [ ] Day 6 — Layer-wise quantization-error analysis explaining MobileNetV2's PTQ
+      corruption sensitivity (per-layer activation similarity, clean vs. corrupted).
+- [ ] Day 7 — Calibration-distribution ablation: clean-only vs. corruption-aware vs.
+      class-balanced vs. diversity-selected calibration sets.
+- [ ] Day 8 — Related Work section (quantization, adversarial robustness, corruption
+      robustness, traffic-sign recognition) + BibTeX citations.
+- [ ] Day 9 — README information hierarchy: compact key-results table above the fold +
+      a system/experiment architecture diagram.
+- [ ] Day 10 — 6-8 page two-column academic paper PDF (Abstract through References).
+- [ ] Day 11 — Final integration pass: full suite green, dashboard updated, README/report
+      cross-checked against the new results, CI green.
+
 ## Notes
 - Dataset: GTSRB (Kaggle: meowmeowmeowmeowmeow/gtsrb-german-traffic-sign)
 - GTSRB train images are sequential video frames of the same physical sign — a naive
