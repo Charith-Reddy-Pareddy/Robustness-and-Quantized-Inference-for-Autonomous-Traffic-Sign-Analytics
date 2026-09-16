@@ -19,8 +19,6 @@ import sys
 from pathlib import Path
 
 import torch
-import torch.nn as nn
-from sklearn.metrics import f1_score
 from torch.utils.data import DataLoader
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,42 +28,18 @@ from src.data.dataset import GTSRBDataset
 from src.data.ingest import load_test_dataframe, load_train_dataframe, track_aware_split
 from src.data.transforms import get_transform
 from src.models.evaluate import predict, summarize
+from src.models.finetune_config import FINE_TUNE_BATCH_SIZE, FINE_TUNE_EPOCHS, FINE_TUNE_LR, FINE_TUNE_SEED
 from src.models.qat import BUILD_FNS, convert_to_quantized, prepare_for_qat
 from src.models.registry import archs_with_ckpt
+from src.models.train import run_epoch, set_seed
 
 RAW_DIR = ROOT / "data" / "raw"
 CKPT_DIR = ROOT / "checkpoints"
-
-QAT_EPOCHS = 3
-QAT_LR = 1e-4
-BATCH_SIZE = 128
 
 ARCHS = {
     name: {"build_fn": BUILD_FNS[name], "fp32_ckpt": spec["ckpt"], "mean": spec["mean"], "std": spec["std"]}
     for name, spec in archs_with_ckpt().items()
 }
-
-
-def run_epoch(model, loader, device, optimizer=None):
-    training = optimizer is not None
-    model.train(mode=training)
-    criterion = nn.CrossEntropyLoss()
-    total_loss, all_preds, all_labels = 0.0, [], []
-    for images, labels in loader:
-        images, labels = images.to(device), labels.to(device)
-        with torch.set_grad_enabled(training):
-            logits = model(images)
-            loss = criterion(logits, labels)
-            if training:
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-        total_loss += loss.item() * images.size(0)
-        all_preds.append(logits.argmax(dim=1).detach().cpu())
-        all_labels.append(labels.detach().cpu())
-    preds = torch.cat(all_preds).numpy()
-    labels_arr = torch.cat(all_labels).numpy()
-    return total_loss / len(loader.dataset), f1_score(labels_arr, preds, average="macro")
 
 
 def main():
@@ -83,21 +57,22 @@ def main():
             continue
 
         print(f"\n=== {arch_name} ===")
+        set_seed(FINE_TUNE_SEED)
         transform = get_transform(mean=cfg["mean"], std=cfg["std"])
         train_ds = GTSRBDataset(train_split_df, transform=transform)
         val_ds = GTSRBDataset(val_split_df, transform=transform)
         test_ds = GTSRBDataset(test_df, transform=transform)
 
-        train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
-        val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
+        train_loader = DataLoader(train_ds, batch_size=FINE_TUNE_BATCH_SIZE, shuffle=True, num_workers=0)
+        val_loader = DataLoader(val_ds, batch_size=FINE_TUNE_BATCH_SIZE, shuffle=False, num_workers=0)
 
         model = cfg["build_fn"](num_classes=43)
         model.load_state_dict(torch.load(CKPT_DIR / cfg["fp32_ckpt"], map_location="cpu"))
         model = prepare_for_qat(model).to(device)
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=QAT_LR)
+        optimizer = torch.optim.Adam(model.parameters(), lr=FINE_TUNE_LR)
         best_val_f1, best_state = -1.0, None
-        for epoch in range(QAT_EPOCHS):
+        for epoch in range(FINE_TUNE_EPOCHS):
             train_loss, train_f1 = run_epoch(model, train_loader, device, optimizer)
             val_loss, val_f1 = run_epoch(model, val_loader, device, optimizer=None)
             print(

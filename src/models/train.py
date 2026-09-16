@@ -34,7 +34,7 @@ class TrainConfig:
     patience: int = 3
 
 
-def _run_epoch(model, loader, device, optimizer=None):
+def run_epoch(model, loader, device, optimizer=None):
     training = optimizer is not None
     model.train(mode=training)
     criterion = nn.CrossEntropyLoss()
@@ -80,8 +80,8 @@ def train_model(
     best_val_f1 = -1.0
     epochs_without_improvement = 0
     for epoch in range(config.epochs):
-        train_loss, train_f1 = _run_epoch(model, train_loader, device, optimizer)
-        val_loss, val_f1 = _run_epoch(model, val_loader, device, optimizer=None)
+        train_loss, train_f1 = run_epoch(model, train_loader, device, optimizer)
+        val_loss, val_f1 = run_epoch(model, val_loader, device, optimizer=None)
         history.append(
             {
                 "epoch": epoch,
