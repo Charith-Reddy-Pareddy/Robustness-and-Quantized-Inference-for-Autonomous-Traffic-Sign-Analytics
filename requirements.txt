@@ -3,7 +3,12 @@ torchvision==0.25.0
 numpy==2.2.6
 pandas==2.2.3
 scikit-learn==1.5.2
-scipy==1.16.3
+# scipy 1.16+ requires Python >=3.11; CI (and this project's documented env) pins Python
+# 3.10, so this stays on the 1.15.x line. On some macOS arm64 Python builds, PyPI's 1.15.x
+# wheels fail to import (a dyld/_propack incompatibility unrelated to this project and
+# unrelated to CI, which runs on Linux) -- if that happens locally, use a Python 3.10
+# install that doesn't hit it, or a local venv override; don't bump this pin for it.
+scipy==1.15.3
 matplotlib==3.10.0
 seaborn==0.13.2
 opencv-python==5.0.0.93
